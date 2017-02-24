@@ -1,7 +1,9 @@
 import re
 
-from collections import Counter
 from pymystem3 import Mystem
+from pymongo import MongoClient
+from pymongo.errors import BulkWriteError
+from collections import Counter
 from sklearn.pipeline import Pipeline
 
 
@@ -15,11 +17,42 @@ default_modalities = [
 # Generic interfaces
 # ----------------------------
 
-class BaseProcessor(object):
-    """Root interface class, which describes abstract transformation."""
+class BaseSource():
+    """
+    Root interface class, which describes the starting point of processing.
+    Purpose: accumulate some input, do a preparatory job, and pass
+             an accumulated state further over pipeline.
+    Input:   arbitrary data.
+    Output:  pointer to self (default case), but may be re-defined.
+    """
+
+    def transform(self, *args):
+        return self
+
+class BaseProcessor():
+    """
+    Root interface class, which describes an intermediate step of processing.
+    Purpose: take some input from previous steps, modify it and pass it over
+             next processors on the pipeline.
+    Input:   arbitrary data.
+    Output:  arbitrary (modified) data.
+    """
+
     def fit(self, *args):
         return self
-    
+
+class BaseSink():
+    """
+    Root interface class, which describes the terminate point of processing.
+    Purpose: perform some action over processed data and serve as a
+             terminal element on the pipeline.
+    Input:   arbitrary data.
+    Output:  None.
+    """
+
+    def fit(self, *args):
+        return self
+
     def transform(self, *args):
         return None
 
@@ -40,12 +73,7 @@ class CollectionProcessor(BaseProcessor):
 # Specific classes
 # ----------------------------
 
-class Document(object):
-    """Class for storing documents of any collection."""
-
-    def __init__(self, title, modalities):
-        self.title = title
-        self.modalities = modalities
+# TODO: Document all processors
 
 class Splitter(BaseProcessor):
     def __init__(self, token_pattern):
@@ -85,6 +113,14 @@ class FrequencyFilterer(BaseProcessor):
     def transform(self, tokens):
         return list(filter(lambda t: t not in self.stop_words, tokens))
 
+class LengthFilterer(BaseProcessor):
+    def __init__(self, min_len=0, len_func=None):
+        self.min_len = min_len
+        self.len_func = len if len_func is None else len_func
+
+    def transform(self, tokens):
+        return list(filter(lambda t: self.len_func(t) >= self.min_len, tokens))
+
 class Lemmatizer(BaseProcessor):
     def __init__(self):
         self.m = Mystem()
@@ -94,25 +130,25 @@ class Lemmatizer(BaseProcessor):
         return list(filter(lambda s: s.strip(), self.m.lemmatize(lemm_str)))
 
 class DefaultTextProcessor(TextProcessor):
-    def __init__(self, token_pattern="(?u)\\b\\w\\w+\\b", stop_words=None):
+    def __init__(self, token_pattern="(?u)\\b\\w+\\b", stop_words=None):
         splitter = Splitter(token_pattern)
-        filterer = DictionaryFilterer(stop_words)
+        filterer = DictionaryFilterer(stop_words=stop_words)
 
-        self.pipeline = Pipeline([
+        self.text_pipeline = Pipeline([
             ("split-text",    splitter),
             ("filter-tokens", filterer),
         ])
 
     def transform(self, raw_text):
-        return self.pipeline.fit_transform(raw_text)
+        return self.text_pipeline.fit_transform(raw_text.lower())
 
 class DefaultDocumentProcessor(DocumentProcessor):
     def __init__(self, min_df=None, max_df=None, stop_lemmas=None):
         lemmatizer    = Lemmatizer()
-        dict_filterer = DictionaryFilterer(stop_lemmas)
-        freq_filterer = FrequencyFilterer(min_df, max_df)
+        dict_filterer = DictionaryFilterer(stop_words=stop_lemmas)
+        freq_filterer = FrequencyFilterer(min_df=min_df, max_df=max_df)
 
-        self.text_pipeline = Pipeline([
+        self.doc_pipeline = Pipeline([
             ("lemmatize-tokens",     lemmatizer),
             ("filter-by-dictionary", dict_filterer),
             ("filter-by-frequency",  freq_filterer),
@@ -120,5 +156,54 @@ class DefaultDocumentProcessor(DocumentProcessor):
 
     def transform(self, tokens):
         modalities = dict.fromkeys(default_modalities, [])
-        modalities["text"] = self.text_pipeline.fit_transform(tokens)
+        modalities["text"] = self.doc_pipeline.fit_transform(tokens)
         return modalities
+
+class DefaultCollectionProcessor(CollectionProcessor):
+    def __init__(self, min_len=0, len_func=None):
+        len_func = (lambda doc: len(doc["modalities"]["text"])) if len_func is None else len_func
+
+        len_filterer = LengthFilterer(min_len=min_len, len_func=len_func)
+
+        self.col_pipeline = Pipeline([
+            ("filter-by-length", len_filterer),
+        ])
+
+    def transform(self, docs):
+        return self.col_pipeline.fit_transform(docs)
+
+class UciBowSink(CollectionProcessor):
+    def __init__(self, vocab_file, docword_file):
+        self.vocab_file = vocab_file
+        self.docword_file = docword_file
+
+    def fit(self, docs):
+        Ws = set()
+        for doc in docs:
+            for k, vs in doc["modalities"].items():
+                Ws |= set(map(lambda v: (re.sub("\s", "_", v), k), vs))
+        self.Ws = dict(zip(Ws, range(len(Ws))))
+        return self
+
+    def transform(self, docs):
+        w, d = len(self.Ws), len(docs)
+        nnzs = []
+        for docID, doc in enumerate(docs):
+            bow = []
+            for k, vs in doc["modalities"].items():
+                bow += map(lambda v: self.Ws.get((re.sub("\s", "_", v), k), -1), vs)
+            nnzs += map(lambda p: (docID + 1, p[0] + 1, p[1]), Counter(bow).items())
+        docword_header = "%d\n%d\n%d\n" % (d, w, len(nnzs))
+        self.vocab_file.write("\n".join(map(lambda k: "%s %s" % k, self.Ws)))
+        self.docword_file.write(docword_header + "\n".join(map(lambda v: "%d %d %d" % v, nnzs)))
+        self.vocab_file.close()
+        self.docword_file.close()
+
+class MongoDbSink(BaseSink):
+    def __init__(self, collection_name):
+        client = MongoClient()
+        self.collection = client["datasets"][collection_name]
+
+    def transform(self, docs):
+        result = self.collection.insert_many(docs)
+        return result.inserted_ids
