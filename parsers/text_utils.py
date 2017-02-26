@@ -17,7 +17,21 @@ default_modalities = [
 # Generic interfaces
 # ----------------------------
 
-class BaseSource():
+class BaseTransformable():
+    """
+    Root interface class, which describes abstract transformation of data.
+    """
+
+    def fit(self, *args):
+        pass
+
+    def transform(self, *args):
+        pass
+
+    def fit_transform(self, *args):
+        return self.fit(*args).transform(*args)
+
+class BaseSource(BaseTransformable):
     """
     Root interface class, which describes the starting point of processing.
     Purpose: accumulate some input, do a preparatory job, and pass
@@ -29,7 +43,7 @@ class BaseSource():
     def transform(self, *args):
         return self
 
-class BaseProcessor():
+class BaseProcessor(BaseTransformable):
     """
     Root interface class, which describes an intermediate step of processing.
     Purpose: take some input from previous steps, modify it and pass it over
@@ -41,7 +55,7 @@ class BaseProcessor():
     def fit(self, *args):
         return self
 
-class BaseSink():
+class BaseSink(BaseTransformable):
     """
     Root interface class, which describes the terminate point of processing.
     Purpose: perform some action over processed data and serve as a
@@ -79,7 +93,7 @@ class Splitter(BaseProcessor):
     def __init__(self, token_pattern):
         self.token_regexp = re.compile(token_pattern)
 
-    def transform(self, text):
+    def transform(self, text, *args):
         return self.token_regexp.findall(text)
 
 class DictionaryFilterer(BaseProcessor):
@@ -89,7 +103,7 @@ class DictionaryFilterer(BaseProcessor):
         else:
             self.stop_words = set(stop_words)
 
-    def transform(self, tokens):
+    def transform(self, tokens, *args):
         return list(filter(lambda t: t not in self.stop_words, tokens))
 
 class FrequencyFilterer(BaseProcessor):
@@ -110,7 +124,7 @@ class FrequencyFilterer(BaseProcessor):
         self.stop_words = set(map(lambda p: p[0], filter(lambda p: p[1] < min_df or p[1] > max_df, freq.items())))
         return self
 
-    def transform(self, tokens):
+    def transform(self, tokens, *args):
         return list(filter(lambda t: t not in self.stop_words, tokens))
 
 class LengthFilterer(BaseProcessor):
@@ -118,14 +132,14 @@ class LengthFilterer(BaseProcessor):
         self.min_len = min_len
         self.len_func = len if len_func is None else len_func
 
-    def transform(self, tokens):
+    def transform(self, tokens, *args):
         return list(filter(lambda t: self.len_func(t) >= self.min_len, tokens))
 
 class Lemmatizer(BaseProcessor):
     def __init__(self):
         self.m = Mystem()
 
-    def transform(self, tokens):
+    def transform(self, tokens, *args):
         lemm_str = " ".join(tokens)
         return list(filter(lambda s: s.strip(), self.m.lemmatize(lemm_str)))
 
@@ -139,7 +153,7 @@ class DefaultTextProcessor(TextProcessor):
             ("filter-tokens", filterer),
         ])
 
-    def transform(self, raw_text):
+    def transform(self, raw_text, *args):
         return self.text_pipeline.fit_transform(raw_text.lower())
 
 class DefaultDocumentProcessor(DocumentProcessor):
@@ -154,13 +168,13 @@ class DefaultDocumentProcessor(DocumentProcessor):
             ("filter-by-frequency",  freq_filterer),
         ])
 
-    def transform(self, tokens):
+    def transform(self, tokens, *args):
         modalities = dict.fromkeys(default_modalities, [])
         modalities["text"] = self.doc_pipeline.fit_transform(tokens)
         return modalities
 
 class DefaultCollectionProcessor(CollectionProcessor):
-    def __init__(self, min_len=0, len_func=None):
+    def __init__(self, min_len=0, min_df=None, max_df=None, len_func=None):
         len_func = (lambda doc: len(doc["modalities"]["text"])) if len_func is None else len_func
 
         len_filterer = LengthFilterer(min_len=min_len, len_func=len_func)
@@ -169,8 +183,22 @@ class DefaultCollectionProcessor(CollectionProcessor):
             ("filter-by-length", len_filterer),
         ])
 
-    def transform(self, docs):
-        return self.col_pipeline.fit_transform(docs)
+        self.freq_filterer = FrequencyFilterer(min_df=min_df, max_df=max_df)
+
+    def fit(self, docs):
+        # TODO: make modality an external parameter
+        tokens = sum([doc["modalities"]["text"] for doc in docs], [])
+        self.freq_filterer.fit(tokens)
+        return self
+
+    def transform(self, docs, *args):
+        docs = self.col_pipeline.fit_transform(docs)
+        docs_modified = []
+        for doc in docs:
+            # TODO: make modality an external parameter
+            doc["modalities"]["text"] = self.freq_filterer.transform(doc["modalities"]["text"])
+            docs_modified.append(doc)
+        return docs_modified
 
 class UciBowSink(CollectionProcessor):
     def __init__(self, vocab_file, docword_file):
@@ -185,7 +213,7 @@ class UciBowSink(CollectionProcessor):
         self.Ws = dict(zip(Ws, range(len(Ws))))
         return self
 
-    def transform(self, docs):
+    def transform(self, docs, *args):
         w, d = len(self.Ws), len(docs)
         nnzs = []
         for docID, doc in enumerate(docs):
@@ -194,7 +222,8 @@ class UciBowSink(CollectionProcessor):
                 bow += map(lambda v: self.Ws.get((re.sub("\s", "_", v), k), -1), vs)
             nnzs += map(lambda p: (docID + 1, p[0] + 1, p[1]), Counter(bow).items())
         docword_header = "%d\n%d\n%d\n" % (d, w, len(nnzs))
-        self.vocab_file.write("\n".join(map(lambda k: "%s %s" % k, self.Ws)))
+        words_list = sorted(self.Ws.items(), key=lambda p: p[1])
+        self.vocab_file.write("\n".join(map(lambda k: "%s %s" % k[0], words_list)))
         self.docword_file.write(docword_header + "\n".join(map(lambda v: "%d %d %d" % v, nnzs)))
         self.vocab_file.close()
         self.docword_file.close()
@@ -204,6 +233,6 @@ class MongoDbSink(BaseSink):
         client = MongoClient()
         self.collection = client["datasets"][collection_name]
 
-    def transform(self, docs):
+    def transform(self, docs, *args):
         result = self.collection.insert_many(docs)
         return result.inserted_ids
