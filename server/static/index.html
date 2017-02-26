@@ -1,148 +1,158 @@
 <!DOCTYPE html>
+<html>
 <meta charset="utf-8">
-<style>
+<head>
+	<link href="css/index.css" rel="stylesheet" type="text/css">
+	<link href="css/bootstrap.css.1" rel="stylesheet">
+	<script src="http://code.jquery.com/jquery-latest.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+	<div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="brand" href="#">Project name</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li class="active"><a href="#">Home</a></li>
+              <li><a href="#about">About</a></li>
+              <li><a href="#contact">Contact</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
 
-.polygons {
-		  fill: #00ff00;
-		  stroke: #000;
-}
+	<div class="container">
+	  <svg viewBox="0 0 1000 700" width="1000" height="650"></svg>
+	</div> <!-- /container -->
 
-.polygons #selected-polygon {
-		  fill: #f00;
-}
+	<script type="text/javascript">
+	var svg = d3.select("svg"),
+		width = +svg.attr("width"), height = +svg.attr("height");
 
-.titles {
-	fill: #000;
-	stroke: #000;
-	background: #00F;
-}
+	var selected_topics_hierarchy = []
 
-.chosen_topics_label {
-	font-size: 250%;
-}
+	var N_sites = 10
+	var random_factor = 0.3
+	var opacity_background = 0.93
 
-</style>
-<svg width="1300" height="730"></svg>
-<script src="https://d3js.org/d3.v4.min.js"></script>
-<script type="text/javascript">
+	drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
+	drawVoronoi(svg, N_sites, width, height, [], d3.range(N_sites), opacity_background);
 
-var svg = d3.select("svg"),
-	width = +svg.attr("width"), height = +svg.attr("height");
+	function drawVoronoi(svg, N_sites, width, height, selected_topics_hierarchy, topic_list, opacity) {
 
-var selected_topics_hierarchy = []
-
-var N_sites = 10
-var random_factor = 0.3
-var opacity_background = 0.93
-
-drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
-drawVoronoi(svg, N_sites, width, height, [], d3.range(N_sites), opacity_background);
-
-function drawVoronoi(svg, N_sites, width, height, selected_topics_hierarchy, topic_list, opacity) {
-
-	function calculateColsRowsNum(width, height, N_points) {
-		var alpha = width/height;
-		var num_points_h = Math.ceil(Math.sqrt(N_points/alpha)),
-		num_points_w = Math.ceil(N_points/num_points_h);
-		return [num_points_w, num_points_h]
-	}
-
-	function getCellSize(width, height, N_points) {
-		var num_points = calculateColsRowsNum(width, height, N_points),
-		 	num_points_w = num_points[0], num_points_h = num_points[1];
-		var cell_width = Math.floor(width/num_points_w), cell_height = Math.floor(height/num_points_h);
-		return [cell_width, cell_height]
-	}
-
-	function getPoints(width, height, N_points, random_factor) {
-		var num_points = calculateColsRowsNum(width, height, N_points),
-		 	num_points_w = num_points[0], num_points_h = num_points[1];
-		var cell_size = getCellSize(width, height, N_points),
-		 	cell_width = cell_size[0], cell_height = cell_size[1];
-		var coordinates_of_points = [];
-		for (var i = 0, points_counter = 0, w = Math.floor(cell_width/2);
-		 (i < num_points_w) & (points_counter < N_points); i++, w += cell_width) {
-			for (var j = 0, h = Math.floor(cell_height/2); (j < num_points_h) & (points_counter < N_points); j++, h += cell_height) {
-				coordinates_of_points.push([w + Math.random()*random_factor*cell_width,
-					 													h + Math.random()*random_factor*cell_width]);
-				points_counter++;
-			}
+		function calculateColsRowsNum(width, height, N_points) {
+			var alpha = width/height;
+			var num_points_h = Math.ceil(Math.sqrt(N_points/alpha)),
+			num_points_w = Math.ceil(N_points/num_points_h);
+			return [num_points_w, num_points_h]
 		}
-		return coordinates_of_points;
-	}
 
-	var sites = getPoints(width, height, N_sites, random_factor)
+		function getCellSize(width, height, N_points) {
+			var num_points = calculateColsRowsNum(width, height, N_points),
+			 	num_points_w = num_points[0], num_points_h = num_points[1];
+			var cell_width = Math.floor(width/num_points_w), cell_height = Math.floor(height/num_points_h);
+			return [cell_width, cell_height]
+		}
 
-	var voronoi = d3.voronoi().extent([[-1, -1], [width + 1, height + 1]]);
+		function getPoints(width, height, N_points, random_factor) {
+			var num_points = calculateColsRowsNum(width, height, N_points),
+			 	num_points_w = num_points[0], num_points_h = num_points[1];
+			var cell_size = getCellSize(width, height, N_points),
+			 	cell_width = cell_size[0], cell_height = cell_size[1];
+			var coordinates_of_points = [];
+			for (var i = 0, points_counter = 0, w = Math.floor(cell_width/2);
+			 (i < num_points_w) & (points_counter < N_points); i++, w += cell_width) {
+				for (var j = 0, h = Math.floor(cell_height/2); (j < num_points_h) & (points_counter < N_points); j++, h += cell_height) {
+					coordinates_of_points.push([w + Math.random()*random_factor*cell_width,
+						 													h + Math.random()*random_factor*cell_width]);
+					points_counter++;
+				}
+			}
+			return coordinates_of_points;
+		}
 
-	var polygon = svg.append("g")
-		.attr("class", "polygons")
-		.selectAll("path")
-		.data(d3.zip(d3.range(N_sites), voronoi.polygons(sites)))
-		.enter().append("path")
-		.on("click", on_click_polygon)
-		.call(redrawPolygon)
-		;
+		var sites = getPoints(width, height, N_sites, random_factor)
 
-	if(topic_list.length > 0) {
-		svg.append("text")
-			.attr("class", "chosen_topics_label")
-			.text("Root" + (selected_topics_hierarchy.length > 0 ? " > " +
-			 		selected_topics_hierarchy.map(function(x) {return "Topic " + x}).join(" > ") + ":" :":"))
-			.attr("x", 20)
-			.attr("y", 40)
+		var voronoi = d3.voronoi().extent([[-1, -1], [width + 1, height + 1]]);
+
+		var polygon = svg.append("g")
+			.attr("class", "polygons")
+			.selectAll("path")
+			.data(d3.zip(d3.range(N_sites), voronoi.polygons(sites)))
+			.enter().append("path")
+			.on("click", on_click_polygon)
+			.call(redrawPolygon)
 			;
 
-		var titles = svg.append("g")
-			.attr("class", "titles")
-			.selectAll("text")
-			.data(d3.zip(d3.range(N_sites), sites))
-			.enter().append("text")
-			.call(redrawTitle)
-			;
+		if(topic_list.length > 0) {
+			svg.append("text")
+				.attr("class", "chosen_topics_label")
+				.text("Root" + (selected_topics_hierarchy.length > 0 ? " > " +
+				 		selected_topics_hierarchy.map(function(x) {return "Topic " + x}).join(" > ") + ":" :":"))
+				.attr("x", 20)
+				.attr("y", 40)
+				;
+
+			var titles = svg.append("g")
+				.attr("class", "titles")
+				.selectAll("text")
+				.data(d3.zip(d3.range(N_sites), sites))
+				.enter().append("text")
+				.call(redrawTitle)
+				;
+		}
+
+		function redraw() {
+			var diagram = voronoi(sites);
+			polygon = polygon.data(diagram.polygons()).call(redrawPolygon);
+			site = site.data(sites).call(redrawSite);
+		}
+
+		function on_click_polygon() {
+			topic_num = this.__data__[0];
+			selected_topics_hierarchy.push(topic_num)
+			var increment_topics_num = 5;
+			drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
+			drawVoronoi(svg, N_sites + increment_topics_num, width, height,
+				 selected_topics_hierarchy, d3.range(N_sites + increment_topics_num), opacity_background)
+
+		}
+
+		function redrawPolygon(polygon) {
+			polygon
+				.attr("fill", function(d) {return "#" + Math.floor(0x00ff00 + Math.random()*10000).toString(16).substring(2)})
+				.attr("opacity", opacity)
+				.attr("d", function(d) {
+				return d[1] ? "M" + d[1].join("L") + "Z" : null;
+			});
+		}
+
+		function redrawTitle(title) {
+			var cell_size = getCellSize(width, height, N_sites),
+				cell_width = cell_size[0], cell_height = cell_size[1];
+
+			title
+				.text(function(d) {
+					return "Topic " + (selected_topics_hierarchy.length > 0 ?
+						selected_topics_hierarchy.join(".") + "." : "") + topic_list[d[0]];
+				})
+				.attr("x", function(d) {
+					var x = Math.floor(d[1][0]) - Math.floor((1-2*random_factor)*cell_width*0.5);
+						return x;})
+				.attr("y", function(d) {
+					var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5);
+					return y;})
+		}
 	}
 
-	function redraw() {
-		var diagram = voronoi(sites);
-		polygon = polygon.data(diagram.polygons()).call(redrawPolygon);
-		site = site.data(sites).call(redrawSite);
-	}
-
-	function on_click_polygon() {
-		topic_num = this.__data__[0];
-		selected_topics_hierarchy.push(topic_num)
-		var increment_topics_num = 5;
-		drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
-		drawVoronoi(svg, N_sites + increment_topics_num, width, height,
-			 selected_topics_hierarchy, d3.range(N_sites + increment_topics_num), opacity_background)
-
-	}
-
-	function redrawPolygon(polygon) {
-		polygon
-			.attr("fill", function(d) {return "#" + Math.floor(0x00ff00 + Math.random()*10000).toString(16).substring(2)})
-			.attr("opacity", opacity)
-			.attr("d", function(d) {
-			return d[1] ? "M" + d[1].join("L") + "Z" : null;
-		});
-	}
-
-	function redrawTitle(title) {
-		var cell_size = getCellSize(width, height, N_sites),
-			cell_width = cell_size[0], cell_height = cell_size[1];
-
-		title
-			.text(function(d) {
-				return "Topic " + (selected_topics_hierarchy.length > 0 ?
-					selected_topics_hierarchy.join(".") + "." : "") + topic_list[d[0]];
-			})
-			.attr("x", function(d) {
-				var x = Math.floor(d[1][0]) - Math.floor((1-2*random_factor)*cell_width*0.5);
-					return x;})
-			.attr("y", function(d) {
-				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5);
-				return y;})
-	}
-}
-
-</script>
+	</script>
+</body>
+</html>
