@@ -1,25 +1,26 @@
-var express = require('express');
-var zmq = require('zmq');
+var express = require("express");
+var zmq = require("zmq");
 
 // Initialize zmq
-var sock = zmq.socket('req');
+var sock = zmq.socket("req");
 
-sock.connect('tcp://127.0.0.1:2411');
+sock.connect("tcp://127.0.0.1:2411");
 
 var artm_topics = null;
-sock.on('message', function (reply) {
+sock.on("message", function (reply) {
     reply = JSON.parse(reply);
     if (reply.act == "get_topics") {
         artm_topics = reply.data;
     }
 });
 
-sock.send('{"act":"get_topics"}');
+sock.send("{\"act\":\"get_topics\"}");
 
 // Initialize express
 var app = express();
+app.use(express.static("static"));
 
-app.get('/get-topics', function(req, res) {
+app.get("/get-topics", function(req, res) {
     if (artm_topics) {
         res.send(artm_topics);
     } else {
