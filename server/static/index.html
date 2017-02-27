@@ -51,18 +51,17 @@
 		.map(function(key) {return aaa[key]})
 	}
 
-
-
 	var N_sites = levels[0].length
 	var random_factor = 0.3
-	var opacity_background = 1
+	var opacity_background = 0.85
 
 	var selected_topics_hierarchy = []
 
-	//drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
-	drawVoronoi(svg, N_sites, width, height, [], levels[0], opacity_background);
+	drawVoronoi(svg, N_sites*4, width, height, [], d3.range(N_sites*4), 1, true)
+	drawVoronoi(svg, N_sites, width, height, [], levels[0], opacity_background, false);
 
-	function drawVoronoi(svg, N_sites, width, height, selected_topics_hierarchy, topic_list, opacity) {
+	function drawVoronoi(svg, N_sites, width, height, selected_topics_hierarchy,
+		 topic_list, opacity, isBackground) {
 
 		function calculateColsRowsNum(width, height, N_points) {
 			var alpha = width/height;
@@ -108,7 +107,7 @@
 			.call(redrawPolygon)
 			;
 
-		if(topic_list.length > 0) {
+		if(!isBackground) {
 			d3.select("body").selectAll("H3")
 			.text("Root" + (selected_topics_hierarchy.length > 0 ? " > " +
 					selected_topics_hierarchy.map(function(x) {return "Topic " + x}).join(" > ") + ":" :":"))
@@ -147,9 +146,10 @@
 				topic_list.push(aaa[topic.children[i]])
 			}
 			selected_topics_hierarchy.push(topic.top_words.toString())
-		//	drawVoronoi(svg, topic.children.length*4, width, height, [], [], 1)
+			drawVoronoi(svg, topic.children.length*4, width, height, [],
+				d3.range(topic.children.length*4), 1, true)
 			drawVoronoi(svg, topic.children.length, width, height,
-				 selected_topics_hierarchy, topic_list, opacity_background)
+				 selected_topics_hierarchy, topic_list, opacity_background, false)
 
 		}
 
