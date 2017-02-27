@@ -1,0 +1,22 @@
+	body {
+	  padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+	}
+	
+	.polygons {
+		fill: #00ff00;
+		stroke: #000;
+	}
+
+	.polygons #selected-polygon {
+		fill: #f00;
+	}
+
+	.titles {
+		fill: #000;
+		stroke: #000;
+		background: #00F;
+	}
+
+	.chosen_topics_label {
+		font-size: 250%;
+	}
