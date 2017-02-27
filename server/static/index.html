@@ -3,10 +3,11 @@
 <meta charset="utf-8">
 <head>
 	<link href="css/index.css" rel="stylesheet" type="text/css">
-	<link href="css/bootstrap.css.1" rel="stylesheet">
+	<link href="css/bootstrap.css" rel="stylesheet">
 	<script src="http://code.jquery.com/jquery-latest.js"></script>
 	<script src="js/bootstrap.min.js"></script>
 	<script src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="topics.js"></script>
 </head>
 <body>
 	<div class="navbar navbar-inverse navbar-fixed-top">
@@ -17,7 +18,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="brand" href="#">Project name</a>
+          <a class="brand" href="#">Rysearch</a>
           <div class="nav-collapse collapse">
             <ul class="nav">
               <li class="active"><a href="#">Home</a></li>
@@ -29,22 +30,37 @@
       </div>
     </div>
 
-	<div class="container">
-	  <svg viewBox="0 0 1000 700" width="1000" height="650"></svg>
-	</div> <!-- /container -->
+	<H3 class="chosen_topics_list">Hi</H3>
+
+	<svg viewBox="0 0 1280 600" width="1280" height="600"></svg>
 
 	<script type="text/javascript">
-	var svg = d3.select("svg"),
-		width = +svg.attr("width"), height = +svg.attr("height");
+	var svg = d3.select("svg"), width = +svg.attr("width"), height = +svg.attr("height");
+
+	var topic_keys = Object.keys(aaa);
+
+	/*d3.select('body').selectAll("p").data(topic_keys).enter()
+		.append("p").text(function(x) {return x + ": " + aaa[x].top_words})
+*/
+	var levels_indexes = new Set()
+	topic_keys.map(function(key) {levels_indexes.add(aaa[key].level_id); return key});
+
+	var levels = {}
+	for (var i = 0; i < levels_indexes.size; i++) {
+		levels[i] = topic_keys.filter(function(key) {return aaa[key].level_id == String(i)})
+		.map(function(key) {return aaa[key]})
+	}
+
+
+
+	var N_sites = levels[0].length
+	var random_factor = 0.3
+	var opacity_background = 1
 
 	var selected_topics_hierarchy = []
 
-	var N_sites = 10
-	var random_factor = 0.3
-	var opacity_background = 0.93
-
-	drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
-	drawVoronoi(svg, N_sites, width, height, [], d3.range(N_sites), opacity_background);
+	//drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
+	drawVoronoi(svg, N_sites, width, height, [], levels[0], opacity_background);
 
 	function drawVoronoi(svg, N_sites, width, height, selected_topics_hierarchy, topic_list, opacity) {
 
@@ -86,28 +102,35 @@
 		var polygon = svg.append("g")
 			.attr("class", "polygons")
 			.selectAll("path")
-			.data(d3.zip(d3.range(N_sites), voronoi.polygons(sites)))
+			.data(d3.zip(d3.range(N_sites), voronoi.polygons(sites), topic_list))
 			.enter().append("path")
 			.on("click", on_click_polygon)
 			.call(redrawPolygon)
 			;
 
 		if(topic_list.length > 0) {
-			svg.append("text")
-				.attr("class", "chosen_topics_label")
-				.text("Root" + (selected_topics_hierarchy.length > 0 ? " > " +
-				 		selected_topics_hierarchy.map(function(x) {return "Topic " + x}).join(" > ") + ":" :":"))
-				.attr("x", 20)
-				.attr("y", 40)
-				;
+			d3.select("body").selectAll("H3")
+			.text("Root" + (selected_topics_hierarchy.length > 0 ? " > " +
+					selected_topics_hierarchy.map(function(x) {return "Topic " + x}).join(" > ") + ":" :":"))
 
-			var titles = svg.append("g")
-				.attr("class", "titles")
-				.selectAll("text")
-				.data(d3.zip(d3.range(N_sites), sites))
-				.enter().append("text")
-				.call(redrawTitle)
-				;
+			var sh = 20;
+			for (var i = 0; i < 3; i++) {
+				drawSingleTitle(svg, i, i*sh);
+			}
+
+			function drawSingleTitle(svg, word_number, shift) {
+				var titles = svg.append("g")
+					.attr("class", "titles")
+					.selectAll("text")
+					.data(d3.zip(d3.range(N_sites), sites,
+					 	d3.range(N_sites).map(function(x){return shift}),
+						topic_list,
+						d3.range(N_sites).map(function(x){return word_number})
+					))
+					.enter().append("text")
+					.call(redrawTitle)
+					;
+			}
 		}
 
 		function redraw() {
@@ -117,18 +140,22 @@
 		}
 
 		function on_click_polygon() {
-			topic_num = this.__data__[0];
-			selected_topics_hierarchy.push(topic_num)
-			var increment_topics_num = 5;
-			drawVoronoi(svg, N_sites*4, width, height, [], [], 1)
-			drawVoronoi(svg, N_sites + increment_topics_num, width, height,
-				 selected_topics_hierarchy, d3.range(N_sites + increment_topics_num), opacity_background)
+			var topic_num = this.__data__[0];
+			var topic = this.__data__[2];
+			var topic_list = []
+			for (var i = 0; i < topic.children.length; i++) {
+				topic_list.push(aaa[topic.children[i]])
+			}
+			selected_topics_hierarchy.push(topic.top_words.toString())
+		//	drawVoronoi(svg, topic.children.length*4, width, height, [], [], 1)
+			drawVoronoi(svg, topic.children.length, width, height,
+				 selected_topics_hierarchy, topic_list, opacity_background)
 
 		}
 
 		function redrawPolygon(polygon) {
 			polygon
-				.attr("fill", function(d) {return "#" + Math.floor(0x00ff00 + Math.random()*10000).toString(16).substring(2)})
+				.attr("fill", function(d) {return "#" + Math.floor(0x00ff00 + Math.random()*4000).toString(16).substring(2)})
 				.attr("opacity", opacity)
 				.attr("d", function(d) {
 				return d[1] ? "M" + d[1].join("L") + "Z" : null;
@@ -138,18 +165,15 @@
 		function redrawTitle(title) {
 			var cell_size = getCellSize(width, height, N_sites),
 				cell_width = cell_size[0], cell_height = cell_size[1];
-
-			title
-				.text(function(d) {
-					return "Topic " + (selected_topics_hierarchy.length > 0 ?
-						selected_topics_hierarchy.join(".") + "." : "") + topic_list[d[0]];
-				})
-				.attr("x", function(d) {
-					var x = Math.floor(d[1][0]) - Math.floor((1-2*random_factor)*cell_width*0.5);
-						return x;})
-				.attr("y", function(d) {
-					var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5);
-					return y;})
+			title.text(function(d) {
+				return d[3].top_words[d[4]]
+			})
+			.attr("x", function(d) {
+				var x = Math.floor(d[1][0]) - Math.floor((1-2*random_factor)*cell_width*0.5);
+					return x;})
+			.attr("y", function(d) {
+				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5) + d[2];
+				return y;})
 		}
 	}
 
