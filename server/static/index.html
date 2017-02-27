@@ -7,7 +7,6 @@
 	<script src="http://code.jquery.com/jquery-latest.js"></script>
 	<script src="js/bootstrap.min.js"></script>
 	<script src="https://d3js.org/d3.v4.min.js"></script>
-	<script src="topics.js"></script>
 </head>
 <body>
 	<div class="navbar navbar-inverse navbar-fixed-top">
@@ -21,45 +20,55 @@
           <a class="brand" href="#">Rysearch</a>
           <div class="nav-collapse collapse">
             <ul class="nav">
-              <li class="active"><a href="#">Home</a></li>
-              <li><a href="#about">About</a></li>
-              <li><a href="#contact">Contact</a></li>
+              <li class="active" id = "chosen_topics_list"><a href="#">Home</a></li>
             </ul>
           </div><!--/.nav-collapse -->
         </div>
       </div>
     </div>
 
-	<H3 class="chosen_topics_list">Hi</H3>
-
 	<svg viewBox="0 0 1280 600" width="1280" height="600"></svg>
+	<H3 class="chosen_topics_list">Hi</H3>
 
 	<script type="text/javascript">
 	var svg = d3.select("svg"), width = +svg.attr("width"), height = +svg.attr("height");
+//	d3.select("body").append("input").attr("type", "button")
+//		.attr("value", "В начало").attr("id", "home_button").attr("display", "none")
 
+
+	var aaa = null;
+	var random_factor = 0.3
+	var opacity_background = 0.85
+
+
+	$.ajax({url: "http://localhost:3000/get-topics", success: function(result) {
+		aaa = result;
+		initialize()
+	}});  
+
+	function initialize() {
 	var topic_keys = Object.keys(aaa);
 
-	/*d3.select('body').selectAll("p").data(topic_keys).enter()
-		.append("p").text(function(x) {return x + ": " + aaa[x].top_words})
-*/
 	var levels_indexes = new Set()
 	topic_keys.map(function(key) {levels_indexes.add(aaa[key].level_id); return key});
 
 	var levels = {}
 	for (var i = 0; i < levels_indexes.size; i++) {
 		levels[i] = topic_keys.filter(function(key) {return aaa[key].level_id == String(i)})
-		.map(function(key) {return aaa[key]})
+		.map(function(key) {
+			var topic = aaa[key];
+			topic["key"] = key;
+			return topic;
+		})
 	}
 
 	var N_sites = levels[0].length
-	var random_factor = 0.3
-	var opacity_background = 0.85
+		var selected_topics_hierarchy = []
+		drawVoronoi(svg, N_sites*4, width, height, [], d3.range(N_sites*4), 1, true)
+		drawVoronoi(svg, N_sites, width, height, [], levels[0], opacity_background, false);
+	}
 
-	var selected_topics_hierarchy = []
-
-	drawVoronoi(svg, N_sites*4, width, height, [], d3.range(N_sites*4), 1, true)
-	drawVoronoi(svg, N_sites, width, height, [], levels[0], opacity_background, false);
-
+	
 	function drawVoronoi(svg, N_sites, width, height, selected_topics_hierarchy,
 		 topic_list, opacity, isBackground) {
 
@@ -145,11 +154,46 @@
 			for (var i = 0; i < topic.children.length; i++) {
 				topic_list.push(aaa[topic.children[i]])
 			}
-			selected_topics_hierarchy.push(topic.top_words.toString())
-			drawVoronoi(svg, topic.children.length*4, width, height, [],
-				d3.range(topic.children.length*4), 1, true)
-			drawVoronoi(svg, topic.children.length, width, height,
-				 selected_topics_hierarchy, topic_list, opacity_background, false)
+			selected_topics_hierarchy.push(topic.key)
+			if (topic.level_id < 2) {
+				drawVoronoi(svg, topic.children.length*4, width, height, [],
+					d3.range(topic.children.length*4), 1, true)
+				drawVoronoi(svg, topic.children.length, width, height,
+					 selected_topics_hierarchy, topic_list, opacity_background, false)
+			} else {
+				svg.attr("display", "none");
+				drawDocumentContent(selected_topics_hierarchy, topic);
+			}
+
+		}
+
+		function drawDocumentContent(selected_topics_hierarchy, topic) {
+			function onClickPrevButton() {
+				selected_topics_hierarchy.pop()
+				var topic_key = selected_topics_hierarchy.pop()
+				var topic = aaa[topic_key]
+				//alert(topic_key)
+				var topic_list = []
+				for (var i = 0; i < topic.children.length; i++) {
+					topic_list.push(aaa[topic.children[i]])
+				}
+				selected_topics_hierarchy.push(topic.key)
+				var svg = d3.select(svg).attr("display", 1)
+				drawVoronoi(svg, topic.children.length*4, width, height, [],
+					d3.range(topic.children.length*4), 1, true)
+				drawVoronoi(svg, topic.children.length, width, height,
+					 selected_topics_hierarchy, topic_list, opacity_background, false)
+			}
+
+			d3.select("body").append("H1").text(topic.top_words.toString())
+			d3.select('body').append("p").text(d3.range(40).map(function(x){
+				return topic.top_words.toString() + "\n"
+			}))
+			document.getElementById('home_button').onclick = function(x) {
+				svg.attr("display", "inherit")
+				drawVoronoi(svg, levels[0].length*4, width, height, [], d3.range(N_sites*4), 1, true)
+				drawVoronoi(svg, levels[0].length, width, height, [], levels[0], opacity_background, false);
+			}
 
 		}
 
@@ -158,7 +202,7 @@
 				.attr("fill", function(d) {return "#" + Math.floor(0x00ff00 + Math.random()*4000).toString(16).substring(2)})
 				.attr("opacity", opacity)
 				.attr("d", function(d) {
-				return d[1] ? "M" + d[1].join("L") + "Z" : null;
+					return d[1] ? "M" + d[1].join("L") + "Z" : null;
 			});
 		}
 
@@ -170,7 +214,7 @@
 			})
 			.attr("x", function(d) {
 				var x = Math.floor(d[1][0]) - Math.floor((1-2*random_factor)*cell_width*0.5);
-					return x;})
+				return x;})
 			.attr("y", function(d) {
 				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5) + d[2];
 				return y;})
