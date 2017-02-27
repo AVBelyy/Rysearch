@@ -49,7 +49,7 @@ for lid, psi in enumerate(psis):
 # Initialize ZeroMQ
 context = zmq.Context()
 socket = context.socket(zmq.REP)
-socket.bind("tcp://127.0.0.1:%d" % ZMQ_PORT)
+socket.bind("tcp://*:%d" % ZMQ_PORT)
 
 print("Start serving ZeroMQ queries on port", ZMQ_PORT)
 
