@@ -1,10 +1,12 @@
 import re
+import copy
 
 from pymystem3 import Mystem
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
 from collections import Counter
 from sklearn.pipeline import Pipeline
+from bson.objectid import ObjectId
 
 
 default_modalities = [
@@ -229,10 +231,15 @@ class UciBowSink(CollectionProcessor):
         self.docword_file.close()
 
 class MongoDbSink(BaseSink):
-    def __init__(self, collection_name):
+    def __init__(self, collection_name, id_func=None):
         client = MongoClient()
         self.collection = client["datasets"][collection_name]
+        self.id_func = id_func
 
     def transform(self, docs, *args):
-        result = self.collection.insert_many(docs)
+        reqs = copy.deepcopy(docs)
+        if self.id_func:
+            for req in reqs:
+                req["_id"] = self.id_func(req)
+        result = self.collection.insert_many(reqs)
         return result.inserted_ids
