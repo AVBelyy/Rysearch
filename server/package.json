@@ -3,7 +3,8 @@
     "version": "0.0.1",
     "private": "true",
     "dependencies": {
-        "express": "4.14.1",
-        "zmq": "2.15.3"
+        "express": ">=4.14.1",
+        "zmq": ">=2.15.3",
+        "uuid": ">=3.0.1"
     }
 }
