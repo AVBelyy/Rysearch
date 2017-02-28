@@ -3,7 +3,6 @@ import copy
 
 from pymystem3 import Mystem
 from pymongo import MongoClient
-from pymongo.errors import BulkWriteError
 from collections import Counter
 from sklearn.pipeline import Pipeline
 from bson.objectid import ObjectId
