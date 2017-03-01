@@ -20,7 +20,7 @@ python3 artm_bridge.py
 
 ```bash
 # Run Node.js server
-npm run
+npm start
 ```
 
 [1] K. V. Vorontsov et al. Non-Bayesian Additive Regularization for Multimodal Topic Modeling of Large Collections, *TM '15 Proceedings of the 2015 Workshop on Topic Models: Post-Processing and Applications*, 2014.
