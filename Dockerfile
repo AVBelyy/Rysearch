@@ -26,19 +26,11 @@ RUN apt-get install -y wget libtool pkg-config build-essential autoconf automake
     make install && \
     ldconfig
 
-RUN apt-get install -y git && \
-    cd ~ && \
-    git clone -b master https://github.com/AVBelyy/Rysearch.git rysearch && \
-    cd rysearch
-
-RUN cd ~/rysearch/server && \
+RUN apt-get install -y git
+RUN cd ~ && \
     wget https://www.dropbox.com/s/rwvlrny32b9n9f7/hartm.mdl
+RUN ln -s /usr/bin/nodejs /usr/bin/node
 
-RUN cd ~/rysearch/server && \
-    ln -s /usr/bin/nodejs /usr/bin/node && \
-    npm install
-
-EXPOSE 2411
 EXPOSE 3000
 
 RUN locale-gen en_US.UTF-8
@@ -46,6 +38,10 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-CMD cd ~/rysearch/server && \
+CMD cd ~ && \
+    git clone -b master https://github.com/AVBelyy/Rysearch.git rysearch && \
+    cd rysearch/server && \
+    cp ~/hartm.mdl . && \
+    npm install && \
     echo "Rysearch server is running on port 3000" && \
     ./start_server.sh
