@@ -38,6 +38,7 @@ RUN cd ~/rysearch/server && \
     ln -s /usr/bin/nodejs /usr/bin/node && \
     npm install
 
+EXPOSE 2411
 EXPOSE 3000
 
 RUN locale-gen en_US.UTF-8
@@ -46,4 +47,5 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 CMD cd ~/rysearch/server && \
+    echo "Rysearch server is running on port 3000" && \
     ./start_server.sh
