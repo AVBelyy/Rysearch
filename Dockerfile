@@ -46,5 +46,4 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 CMD cd ~/rysearch/server && \
-    nohup python3 artm_bridge.py \& && \
-    npm start
+    ./start_server.sh
