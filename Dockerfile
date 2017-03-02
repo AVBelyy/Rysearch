@@ -51,10 +51,10 @@ ENV LC_ALL en_US.UTF-8
 CMD cd ~ && \
     tmux new-session -s "rysearch" -d && \
     tmux new-window -t "rysearch:1" "mongod -f /etc/mongod.conf" && \
-    mongorestore -d datasets ~/datasets && \
     git clone -b master https://github.com/AVBelyy/Rysearch.git rysearch && \
     cd rysearch/server && \
     cp ~/hartm.mdl . && \
+    mongorestore -d datasets ~/datasets && \
     tmux new-window -t "rysearch:2" "python3 artm_bridge.py" && \
     tmux split-window -t "rysearch:2" -v "npm install && npm start" && \
     tmux select-window -t "rysearch:2" && \
