@@ -1,7 +1,14 @@
 # Rysearch
 Rysearch is an explorato**ry search** engine and recommender system. Based on [BigARTM](http://bigartm.org), open-source library for topic modeling, it takes into account latent topical structure of texts to achieve good results in both knowledge exploration and visualization.[1]
 
-## Installation
+## Quick start
+Use our pre-configured Docker image for quick installation. Run:
+```bash
+docker run -t -p 3000:3000 tohnann/rysearch
+```
+And then open [http://localhost:3000](http://localhost:3000).
+
+## Manual installation
 Everything is tested on Linux (NixOS) and Windows operating systems. If things don't work as described here — please submit us an issue.
 
 ### Running a Rysearch server
