@@ -13,7 +13,9 @@
 
 	<!-- dumps (for debugging) -->
 	<!-- topics_dump is here -->
-	<script src="topics_dump.js"></script>
+	<script type="text/javascript" src="topics_dump.js"></script>
+	<script type="text/javascript" src="get-documents_dump_level2_topic31.js"></script>
+	<script type="text/javascript" src="recommendation_dump_228.js"></script>
 </head>
 <body>
 	<!-- Navigation panel markup -->
@@ -36,23 +38,13 @@
 	      </div>
 	    </div>
 
-	    <div class="row-fluid">
-	    	<div class="span8" id="div_svg_contaier">
-	    		<!-- <svg viewBox="0 0 700 600" width="700" height="600" id="knowledge_map_svg_container"></svg>
-	    		-->
+	    <div class="row-fluid" id = "main_container">
+	    	<div class="span10" id="left_container">
 	    		<svg id="knowledge_map_svg_container"></svg>
+	    		
 	    	</div>
-	    	<div class="span4">
-	    		<H1>This is wide Span4</H1>
-	    		<div class="span6"></div>
-	    		<div class="span6">
-		    		<ul class="nav nav-list">
-						<li class="nav-header">List header</li>
-						<li class="active"><a href="#">Домой</a></li>
-						<li class="divider"></li>
-						<li><a href="#">Библиотека</a></li>
-					</ul>
-				</div>
+	    	<div class="span2" id="right_container">
+	    		
 	    	</div>
 	    </div>
 	
@@ -66,11 +58,13 @@
 		Calculate svg canvas size
 		TODO: Exclude hardcoded constant "120" = 2*svg.padding-left (placed in index.css) 
 	*/
-	var svg_container = document.getElementById("div_svg_contaier");
-	var svg_width = svg_container.offsetWidth - 120, svg_height = Number(svg_width*0.7);
-
+	
 	//SVG canvas for knowledge map drawing
+
+	var svg_container = document.getElementById("left_container");
+	var svg_width = svg_container.offsetWidth - 120, svg_height = Number(svg_width*0.5);
 	var svg = d3.select(document.getElementById("knowledge_map_svg_container"));
+
 	svg.attr("width", svg_width).attr("height", svg_height)
 		.attr("viewBox", "0 0 " + svg_width + " " + svg_height)
 
@@ -85,6 +79,8 @@
 	var opacity_background = 1
 	//	The opacity of cells in a foreground
 	var opacity_foreground = 0.85
+
+	var IS_BACKGROUND = 0, IS_TOPICS = 1, IS_DOCS = 2;
 
 	//the dictionary with the information about topics
 	var topics_data;
@@ -107,35 +103,43 @@
 		Function that stars initialization of knowledge map and other interface elements elements.
 		Designed to be the callback after topics data is aquired.
 	*/
+
 	function initialize_knowledge_map(svg, topics_data) {
 	
 		// Dummy way to count the number of layers
-		var levels_indexes = new Set()
-		topic_keys.map(function(key) {levels_indexes.add(topics_data[key].level_id); return key});
+		var max_level = topic_keys.reduce(function(max, key) {return topics_data[key].level_id > max ? topics_data[key].level_id : max}, 0)
 
 		// Split topics data into the array-per-level, add the "key" field into the structure of topic data
 		var levels = {}
-		for (var i = 0; i < levels_indexes.size; i++) {
+		for (var i = 0; i < max_level; i++) {
 			levels[i] = topic_keys.filter(function(key) {return topics_data[key].level_id == String(i)})
 			.map(function(key) {
 				var topic = topics_data[key];
 				topic["key"] = key;
+				topic["is_last_level"] = i == max_level ? true : false;
 				return topic;
 			})
-		}
+		} 
+		
+		for (var i = 0; i < topic_keys.length; i++) {
+			var key = topic_keys[i], topic = topics_data[key];
+			topic["key"] = key;
+			topic["is_last_level"] = topic.level_id == max_level ? true : false;
+		} 
 
 		topics_data["root"] = {
 			"level_id" : "-1",
 			"top_words" : "Root", 
-			"children" : levels[0].map(function(topic) {return topic.key})
+			"children" : topic_keys.filter(function(key) {return topics_data[key].level_id == String(0)})
 		}
 
 
 		//draw the backgound cells without any titles on it
-		drawVoronoi(svg, [], d3.range(levels["0"].length*4), opacity_background, true)
+		drawVoronoi(svg, [], d3.range(topics_data["root"].children.length*4), opacity_background, 0)
 
 		//draw the main cells with root-level topics
-		drawVoronoi(svg, ["root"], levels["0"], opacity_foreground, false);
+		drawVoronoi(svg, ["root"], topics_data["root"].children.map(function(key) { return topics_data[key]}),
+		 opacity_foreground, 1);
 	}
 
 	//	update the list of chosen topics on the navigation bar
@@ -150,16 +154,22 @@
 				.on("click", function(key) {
 					new_selected_topics_list = selected_topics_list.slice(0, selected_topics_list.indexOf(key) + 1)
 					var topics_list = topics_data[key].children.map(function(key){return topics_data[key]});
-					drawVoronoi(svg, [], d3.range(topics_list.length*4), opacity_background, true)
-					drawVoronoi(svg, new_selected_topics_list, topics_list, opacity_foreground, false)
+					drawVoronoi(svg, [], d3.range(topics_list.length*4), opacity_background, IS_BACKGROUND)
+					drawVoronoi(svg, new_selected_topics_list, topics_list, opacity_foreground, IS_TOPICS)
 				})
 			}
 
 	/*
 		Function that draws a level of knowledge map
+		type = {
+			background => 0
+			topics => 1
+			documents => 2
+		}
 	*/
 	function drawVoronoi(svg, selected_topics_list,
-		 topic_list, opacity, isBackground) {
+		 topic_list, opacity, type) {
+
 		var N_cells = topic_list.length;
 
 		var width = +svg.attr("width"), height = +svg.attr("height")
@@ -198,8 +208,6 @@
 			return coordinates_of_points;
 		}
 
-		
-
 		//coordinates of cell centers
 		var points = getPoints(width, height, N_cells, random_factor)
 
@@ -219,7 +227,7 @@
 
 		
 
-		if(!isBackground) {
+		if(type == IS_TOPICS) {
 			//generate a list of chosen topics on a navigation bar
 			updateChosenTopicsList(selected_topics_list, topics_data, svg);
 			
@@ -248,6 +256,10 @@
 			}
 		}
 
+		if (type == IS_DOCS) {
+				
+		}
+
 		//	Function that calls when a cell is clicked
 		function on_click_cell() {
 			var topic_num = this.__data__[0];
@@ -258,12 +270,13 @@
 			//	Append the chosen topic to the list that will be displayed on the navigation bar
 			selected_topics_list.push(topic.key)
 			//	TODO: Fix this shit. Works ONLY with 3-layer models, obviously 
-			if (topic.level_id < 2) {
-				drawVoronoi(svg, [], d3.range(topic.children.length*4), opacity_background, true)
-				drawVoronoi(svg, selected_topics_list, topic_list, opacity_foreground, false)
+			if (!topic.is_last_level) {
+				drawVoronoi(svg, [], d3.range(topic.children.length*4), opacity_background, IS_BACKGROUND)
+				drawVoronoi(svg, selected_topics_list, topic_list, opacity_foreground, IS_TOPICS)
 			} else {
 				updateChosenTopicsList(selected_topics_list, topics_data, svg);
-				
+				var documents = get_documents_dump;
+				alert(Object.keys(documents[0]))
 			}
 
 		}
@@ -283,9 +296,9 @@
 				selected_topics_list.push(topic.key)
 				var svg = d3.select(svg).attr("display", 1)
 				drawVoronoi(svg, topic.children.length*4, [],
-					d3.range(topic.children.length*4), 1, true)
+					d3.range(topic.children.length*4), 1, IS_BACKGROUND)
 				drawVoronoi(svg, topic.children.length, selected_topics_list,
-					topic_list, opacity_background, false)
+					topic_list, opacity_background, IS_TOPICS)
 			}
 
 			d3.select("body").append("H1").text(topic.top_words.toString())
@@ -294,8 +307,8 @@
 			}))
 			document.getElementById('home_button').onclick = function(x) {
 				svg.attr("display", "inherit")
-				drawVoronoi(svg, levels[0].length*4, [], d3.range(N_cells*4), 1, true)
-				drawVoronoi(svg, levels[0].length, [], levels[0], opacity_background, false);
+				drawVoronoi(svg, levels[0].length*4, [], d3.range(N_cells*4), 1, IS_BACKGROUND)
+				drawVoronoi(svg, levels[0].length, [], levels[0], opacity_background, IS_TOPICS);
 			}
 
 		}
