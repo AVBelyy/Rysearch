@@ -20,10 +20,12 @@
 	}
 
 	.titles {
-		font-family: "Univers Condensed";
-		src: url(fonts/UniversCondensed.ttf);
-		font-size: 16px;
-		font-weight: bold;
+		font-family: 'Anton', sans-serif;
+		font-size: 14px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: normal;
+		line-height: 15.4px;
 	}
 
 	.chosen_topics_label {
