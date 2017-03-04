@@ -67,7 +67,7 @@
 	//	The opacity of cells from background
 	var opacity_background = 1
 	//	The opacity of cells from foreground
-	var opacity_foreground = 0.85
+	var opacity_foreground = 0.95
 
 	//	Constants that defines what type of cells drawVoronoi() will draw:
 	//	(Of course it should be more universal then now)
@@ -89,6 +89,39 @@
 		"2" : "#A67100",
 		"3" : "#FFC340",
 		"4" : "#FFD373"
+	}
+
+	var mashas_colorscheme = {
+		"0"	: "#6F4B86",
+		"1" : "#E2B5FF",
+
+		"2" : "#C28E67",
+		"3" : "#FFD2B0",
+		
+		"4" : "#427D78",
+		"5" : "#B0FFF9",
+
+		"6" : "#C2C167",
+		"7" : "#FFFEB0",
+
+		"8" : "#894AB1",
+		"9" : "#FFA661",
+		"10" : "#3EA49C",
+		"11" : "#FFFD61"
+/*
+		//	the saturatest set
+		"1" : "#521A76",
+		"4"	: "#AA5D22",
+		"7" : "#166D67",
+		"10" : "#AAA822",
+
+		//	the fadest set
+		"4" : "#F9F0FF",
+		"9" : "#FFF6EF",
+		"14" : "#EFFFFE",
+		"19" : "#FFFFEF"
+*/
+
 	}
 
 	//	Uncomment this if you want to fetch topics from server...
@@ -198,7 +231,7 @@
 	function drawVoronoi(svg, selected_topics_list,
 		 topics_list, opacity, type) {
 
-		var voronoi_colorscheme = yellow_colorscheme;
+		var voronoi_colorscheme = mashas_colorscheme;
 
 		var N_cells = topics_list.length,
 			width = +svg.attr("width"), height = +svg.attr("height");
@@ -292,6 +325,16 @@
 					drawVoronoi(svg, selected_topics_list, topics_list, opacity_foreground, IS_TOPICS)
 				} else {
 					updateChosenTopicsList(selected_topics_list, topics_data, svg);
+
+					var documents = null;
+					//	Uncomment this if you want to fetch documents from server...
+					/*
+					$.ajax({url: "http://localhost:3000/get-documents?topic_id=" + topic.key, success: function(result) {
+						documents = result;
+						drawVoronoi(svg, chosen_topics_list, documents, opacity_background, IS_DOCS);
+					}});  
+					*/
+					//	... and remove this
 					var documents = get_documents_dump;
 					drawVoronoi(svg, chosen_topics_list, documents, opacity_background, IS_DOCS);
 				}
@@ -322,6 +365,15 @@
 				doc = this.__data__[0];
 				display_mode(MODE_DOCS);
 				display_document(doc);
+				var recommendations = null;
+				//	Uncomment this if you want to fetch recommendations from server...
+				/*
+				$.ajax({url: "http://localhost:3000/get-recommendations?doc_id=" + doc.id.split("_")[1], success: function(result) {
+					recommendations = result;
+					display_recommendations(doc, recommendations);
+				}});  
+				*/
+				//	... and remove this
 				display_recommendations(doc, recommendations_dump_228);
 			}
 
@@ -349,7 +401,7 @@
 		//	Do some routines to finalize the appearance of cells (colors, opacity etc.)
 		function redrawPolygon(polygon) {
 			polygon
-				.attr("fill", function(d) {return voronoi_colorscheme[Math.floor(Math.random()*10000)%5]})
+				.attr("fill", function(d) {return voronoi_colorscheme[Math.floor(Math.random()*100000)%Object.keys(voronoi_colorscheme).length]})
 				.attr("opacity", opacity)
 				.attr("d", function(d) {
 					return d[1] ? "M" + d[1].join("L") + "Z" : null;
