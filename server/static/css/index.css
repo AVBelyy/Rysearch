@@ -7,6 +7,10 @@
 		stroke: #000;
 	}
 
+	svg {
+		padding-left: 60px;
+	}
+
 	.polygons #selected-polygon {
 		fill: #f00;
 	}

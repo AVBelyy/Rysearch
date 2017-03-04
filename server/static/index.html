@@ -36,7 +36,15 @@
       </div>
     </div>
 
-	<svg viewBox="0 0 1280 600" width="1280" height="600"></svg>
+    <div class="row-fluid">
+    	<div class="span8">
+    		<svg viewBox="0 0 700 600" width="700" height="600" id="knowledge_map_svg_container"></svg>
+    	</div>
+    	<div class="span4">
+    		<H1>This is right span</H1>
+    	</div>
+    </div>
+	
 
 
 	<!-- The very main script -->
@@ -45,7 +53,7 @@
 
 
 	//SVG canvas for knowledge map drawing
-	var svg = d3.select("svg");	
+	var svg = d3.select(document.getElementById("knowledge_map_svg_container"));	
 	/*
 		Each cell center is placed in it's own vertex of grid by default. 
 		Random factor (from 0 to 0.5) determines the radius of circle around the vertex where 
@@ -53,10 +61,10 @@
 		cells look like regular rectangles.
 	*/
 	var random_factor = 0.3
-	/*
-		The opacity of cells with topics. That's why you can see the background image.
-	*/
+	//	The opacity of cells in a background
 	var opacity_background = 0.85
+	//	The opacity of cells in a foreground
+	var opacity_foreground = 0.85
 
 	//the dictionary with the information about topics
 	var topics_data;
@@ -72,7 +80,7 @@
 	topics_data = topics_dump;
 	var topic_keys = Object.keys(topics_data);
 
-	initialize(svg, topics_data);
+	initialize_knowledge_map(svg, topics_data);
 	
 
 	/*
@@ -100,21 +108,21 @@
 		var N_cells = levels[0].length
 
 		//draw the backgound cells without any titles on it
-		drawVoronoi(svg, N_cells*4, width, height, [], d3.range(N_cells*4), 0.6, true)
+		drawVoronoi(svg, N_cells*4, [], d3.range(N_cells*4), opacity_background, true)
 
 		//draw the main cells with root-level topics
-		drawVoronoi(svg, N_cells, width, height, [], levels[0], opacity_background, false);
+		drawVoronoi(svg, N_cells, [], levels[0], opacity_foreground, false);
 	}
 
 	/*
 		Function that draws a level of knowledge map
 	*/
-	function drawVoronoi(svg, N_cells, selected_topics_hierarchy,
+	function drawVoronoi(svg, N_cells, selected_topics_list,
 		 topic_list, opacity, isBackground) {
 
 		var width = +svg.attr("width"), height = +svg.attr("height")
 
-		// Calculates the number of columns and rows that's enough to contain N_points cells
+		// Calculate the number of columns and rows that's enough to contain N_points cells
 		function calculateColsRowsNum(width, height, N_points) {
 			var alpha = width/height;
 			var num_points_h = Math.ceil(Math.sqrt(N_points/alpha)),
@@ -122,7 +130,7 @@
 			return [num_points_w, num_points_h]
 		}
 
-		//Calculates the width and height of a cell
+		//Calculate the width and height of a cell
 		function getCellSize(width, height, N_points) {
 			var num_points = calculateColsRowsNum(width, height, N_points),
 			 	num_points_w = num_points[0], num_points_h = num_points[1];
@@ -130,7 +138,7 @@
 			return [cell_width, cell_height]
 		}
 
-		//calculates the coordinates of cell centers
+		//calculate the coordinates of cell centers
 		function getPoints(width, height, N_points, random_factor) {
 			var num_points = calculateColsRowsNum(width, height, N_points),
 			 	num_points_w = num_points[0], num_points_h = num_points[1];
@@ -153,89 +161,103 @@
 
 		var voronoi = d3.voronoi().extent([[-1, -1], [width + 1, height + 1]]);
 
-		//generates cells 
+		//generate cells 
 		var polygon = svg.append("g")
 			.attr("class", "polygons")
 			.selectAll("path")
-			.data(d3.zip(d3.range(N_cells), voronoi.polygons(points), topic_list))
+			.data(d3.zip(d3.range(N_cells),
+			 		voronoi.polygons(points),
+			 		topic_list))
 			.enter().append("path")
-			.on("click", on_click_polygon)
+			.on("click", on_click_cell)
 			.call(redrawPolygon)
 			;
 
-
-		if(!isBackground) {
-			//generates a list of chosen topics on the navigation bar
+		//	update the list of chosen topics on the navigation bar
+		//	according to the given selected_topics_list
+		function updateChosenTopicsList(selected_topics_list) {
 			d3.select(document.getElementById('chosen_topics_list'))
 				.selectAll("li")
-				.data(selected_topics_hierarchy).enter().append("li")
+				.data(selected_topics_list).enter().append("li")
 				.attr("class", "active")
-				.append("a").attr("href", "#").text(function(d){return topics_data[d].top_words + " > "})
+				.append("a").attr("href", "#").text(function(d){return topics_data[d].top_words + " > "});
+			}
 
+		if(!isBackground) {
+			//generate a list of chosen topics on a navigation bar
+			updateChosenTopicsList(selected_topics_list);
 			
 			var y_margin_between_topic_words = 20;
 			for (var i = 0; i < 3; i++) {
 				drawSingleTitle(svg, i, i*y_margin_between_topic_words);
 			}
 
-			//draws titles for polygons 
+			//draw titles for polygons 
 			function drawSingleTitle(svg, word_number, shift) {
 				var titles = svg.append("g")
 					.attr("class", "titles")
 					.selectAll("text")
-					.data(d3.zip(d3.range(N_cells), points,
-					 	d3.range(N_cells).map(function(x){return shift}),
-						topic_list,
-						d3.range(N_cells).map(function(x){return word_number})
+					//	Data for a cell title is 5-tuple:
+					.data(d3.zip(d3.range(N_cells),								// The number of a cell
+						points,			 										// The coordinate a cell center
+					 	topic_list,												// The topic info (json element)
+					 	d3.range(N_cells).map(function(x){return shift}),		// The y-shift from a cell center for this title 
+ 																		
+						d3.range(N_cells).map(function(x){return word_number})	// The number of displayed word from top_words array
 					))
 					.enter().append("text")
+					.on("click", on_click_cell)
 					.call(redrawTitle)
 					;
 			}
 		}
 
-		function redraw() {
-			var diagram = voronoi(points);
-			polygon = polygon.data(diagram.polygons()).call(redrawPolygon);
-			site = site.data(points).call(redrawSite);
-		}
-
-		function on_click_polygon() {
+		//	Function that calls when a cell is clicked
+		function on_click_cell() {
 			var topic_num = this.__data__[0];
 			var topic = this.__data__[2];
 			var topic_list = []
+			//	Get all children of this cell
 			for (var i = 0; i < topic.children.length; i++) {
 				topic_list.push(topics_data[topic.children[i]])
 			}
-			selected_topics_hierarchy.push(topic.key)
+
+			//	Append the chosen topic to the list that will be displayed on the navigation bar
+			selected_topics_list.push(topic.key)
+			//	TODO: Fix this shit. Works ONLY with 3-layer models, obviously 
 			if (topic.level_id < 2) {
 				drawVoronoi(svg, topic.children.length*4, [],
 					d3.range(topic.children.length*4), 1, true)
 				drawVoronoi(svg, topic.children.length, 
-					 selected_topics_hierarchy, topic_list, opacity_background, false)
+					 selected_topics_list, topic_list, opacity_background, false)
 			} else {
+				updateChosenTopicsList(selected_topics_list);
+				//	Hide svg element
 				svg.attr("display", "none");
-				drawDocumentContent(selected_topics_hierarchy, topic);
+				//	Call to draw the topic 
+				drawDocumentContent(selected_topics_list, topic);
 			}
 
 		}
 
-		function drawDocumentContent(selected_topics_hierarchy, topic) {
+
+		//	This part has to be overwritten
+		function drawDocumentContent(selected_topics_list, topic) {
 			function onClickPrevButton() {
-				selected_topics_hierarchy.pop()
-				var topic_key = selected_topics_hierarchy.pop()
+				selected_topics_list.pop()
+				var topic_key = selected_topics_list.pop()
 				var topic = topics_data[topic_key]
 				//alert(topic_key)
 				var topic_list = []
 				for (var i = 0; i < topic.children.length; i++) {
 					topic_list.push(topics_data[topic.children[i]])
 				}
-				selected_topics_hierarchy.push(topic.key)
+				selected_topics_list.push(topic.key)
 				var svg = d3.select(svg).attr("display", 1)
 				drawVoronoi(svg, topic.children.length*4, width, height, [],
 					d3.range(topic.children.length*4), 1, true)
 				drawVoronoi(svg, topic.children.length, width, height,
-					 selected_topics_hierarchy, topic_list, opacity_background, false)
+					 selected_topics_list, topic_list, opacity_background, false)
 			}
 
 			d3.select("body").append("H1").text(topic.top_words.toString())
@@ -250,6 +272,9 @@
 
 		}
 
+
+		//	Function that calls right after cells creation.
+		//	Do some routines to finalize the appearance of cells (colors, opacity etc.)
 		function redrawPolygon(polygon) {
 			polygon
 				.attr("fill", function(d) {return "#" + Math.floor(0x00ff00 + Math.random()*4000).toString(16).substring(2)})
@@ -259,17 +284,19 @@
 			});
 		}
 
+		//	Function that calls right after cells creation.
+		//	Do some routines to finalize the appearance of titles (coordinates, text etc.)
 		function redrawTitle(title) {
 			var cell_size = getCellSize(width, height, N_cells),
 				cell_width = cell_size[0], cell_height = cell_size[1];
 			title.text(function(d) {
-				return d[3].top_words[d[4]]
+				return d[2].top_words[d[4]]
 			})
 			.attr("x", function(d) {
 				var x = Math.floor(d[1][0]) - Math.floor((1-2*random_factor)*cell_width*0.5);
 				return x;})
 			.attr("y", function(d) {
-				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5) + d[2];
+				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5) + d[3];
 				return y;})
 		}
 	}
