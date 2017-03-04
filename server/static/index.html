@@ -42,8 +42,10 @@
 	    	<!-- Container for displaying either a map or an article -->
 	    	<div class="span12" id="main_container">
 	    		<svg id="knowledge_map_svg_container"></svg>
-	    		<div class="span8" id="left_container"></div>
-	    		<div class="span4" id="right_container"></div>
+	    		<div class="span12">
+	    			<div class="span8" id="document_container"></div>
+	    			<div class="span4" id="recommendations_container"></div>
+	    		</div>
 	    	</div>
 
 	    	<!-- container for displaying recommendations -->
@@ -77,8 +79,17 @@
 		MODE_MAP = 0,			//	Display map only
 		MODE_DOCS = 1;			//	Display documents and recommendations
 
-	//the dictionary with the information about topics
+	//	the dictionary with the information about topics
 	var topics_data;
+
+	//	Yes, I know that it should be in .css, it's here for debuggig
+	var yellow_colorscheme = {
+		"0" : "#FFAE00",
+		"1" : "#BF9230",
+		"2" : "#A67100",
+		"3" : "#FFC340",
+		"4" : "#FFD373"
+	}
 
 	//	Uncomment this if you want to fetch topics from server...
 	/*
@@ -97,26 +108,19 @@
 
 	function display_mode(mode) {
 		var svg = document.getElementById("knowledge_map_svg_container"),
-			left_container = document.getElementById("left_container"),
-			right_container = document.getElementById("right_container"),
-			documents_container = d3.select(document.getElementById("documents_container"));
+			document_container = d3.select(document.getElementById("document_container")),
+			recommendations_container = d3.select(document.getElementById("recommendations_container"));
 
-			d3.select(right_container).selectAll("ui").remove();
-			documents_container.selectAll("h1").remove();
-			documents_container.selectAll("p").remove();
+			recommendations_container.selectAll("ui").remove();
+			document_container.selectAll("h1").remove();
+			document_container.selectAll("p").remove();
 
 		switch (mode) {
 			case MODE_MAP:
 				svg.setAttribute("display", "inherit");
-				left_container.setAttribute("class", "span11");
-				right_container.setAttribute("class", "span1");
-				//alert("MODE_MAP");
 				break;
 			case MODE_DOCS:
 				svg.setAttribute("display", "none");
-				left_container.setAttribute("class", "span8");
-				right_container.setAttribute("class", "span4");
-				//alert("MODE_DOCS");
 				break;
 		}
 
@@ -137,7 +141,7 @@
 		
 		//	SVG canvas for knowledge map drawing
 		var svg_container = document.getElementById("main_container");
-		var svg_width = svg_container.offsetWidth - 120, svg_height = Number(svg_width*0.5);
+		var svg_width = svg_container.offsetWidth - 120, svg_height = Number(svg_width*0.45);
 		var svg = d3.select(document.getElementById("knowledge_map_svg_container"));
 
 		svg.attr("width", svg_width).attr("height", svg_height)
@@ -193,6 +197,8 @@
 	*/
 	function drawVoronoi(svg, selected_topics_list,
 		 topics_list, opacity, type) {
+
+		var voronoi_colorscheme = yellow_colorscheme;
 
 		var N_cells = topics_list.length,
 			width = +svg.attr("width"), height = +svg.attr("height");
@@ -343,7 +349,7 @@
 		//	Do some routines to finalize the appearance of cells (colors, opacity etc.)
 		function redrawPolygon(polygon) {
 			polygon
-				.attr("fill", function(d) {return "#" + Math.floor(0x00ff00 + Math.random()*4000).toString(16).substring(2)})
+				.attr("fill", function(d) {return voronoi_colorscheme[Math.floor(Math.random()*10000)%5]})
 				.attr("opacity", opacity)
 				.attr("d", function(d) {
 					return d[1] ? "M" + d[1].join("L") + "Z" : null;
@@ -368,9 +374,9 @@
 	}
 
 	function display_recommendations(doc, recommendations_data) {
-		var right_container = d3.select(document.getElementById("right_container"));
+		var recommendations_container = d3.select(document.getElementById("recommendations_container"));
 		
-		var recommendation_blocks = right_container.append("ui").attr("class", "thumbnails")
+		var recommendation_blocks = recommendations_container.append("ui").attr("class", "thumbnails")
 			.selectAll("li").data(recommendations_data).enter()
 			.append("li").attr("class", "span10")
 			.append("a").attr("class", "thumbnail")
@@ -380,15 +386,21 @@
 			display_document(doc);
 			display_recommendations(doc, recommendations_data);
 		})
-		recommendation_blocks.append("h6").text(function(doc){return doc.title});
-		recommendation_blocks.append("p").text(function(doc){return doc.markdown.split(".")
+		recommendation_blocks.append("h6").attr("class", "recommendation_title")
+			.text(function(doc){return doc.title});
+		recommendation_blocks.append("p").attr("class", "recommendation_text")
+			.text(function(doc){return doc.markdown.split(".")
 			.slice(0, 1).join(".")});
 	}
 
 	function display_document(doc) {
-		var documents_container = d3.select(document.getElementById("documents_container"));
-		documents_container.append("h1").attr("align", "center").text(doc.title);
-		documents_container.append("p").text(doc.markdown);
+		var document_container = d3.select(document.getElementById("document_container"));
+		document_container.append("h1").attr("align", "center")
+			.attr("class", "document_title")
+			.text(doc.title);
+		document_container.append("p")
+			.attr("class", "document_text")
+			.text(doc.markdown);
 	}
 
 	</script>

@@ -20,11 +20,66 @@
 	}
 
 	.titles {
-		fill: #000;
-		stroke: #000;
-		background: #00F;
+		font-family: Helvetica;
+		font-size: 16px;
+		font-weight: bold;
 	}
 
 	.chosen_topics_label {
 		font-size: 250%;
 	}
+
+	.document_title {
+		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font-size: 24px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: bold;
+		line-height: 26.4px;
+	}
+
+	.document_text {
+		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font-size: 14px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: 400;
+		line-height: 20px;
+	}
+
+	.recommendation_title {
+		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font-size: 16px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: bold;
+		line-height: 26.4px;
+	}
+
+	.recommendation_text {
+		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font-size: 12px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: 400;
+		line-height: 20px;
+	}
+
+	h1 {
+		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font-size: 24px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: 500;
+		line-height: 26.4px;
+	}
+
+	p {
+		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font-size: 14px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: 400;
+		line-height: 20px;
+	}
+	
