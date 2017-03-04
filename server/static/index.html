@@ -38,14 +38,16 @@
 	      </div>
 	    </div>
 
-	    <div class="row-fluid" id = "main_container">
-	    	<div class="span11" id="left_container">
+	    <div class="row-fluid">
+	    	<!-- Container for displaying either a map or an article -->
+	    	<div class="span12" id="main_container">
 	    		<svg id="knowledge_map_svg_container"></svg>
-	    		<div class="span12" id="documents_container"></div>
+	    		<div class="span8" id="left_container"></div>
+	    		<div class="span4" id="right_container"></div>
 	    	</div>
-	    	<div class="span1" id="right_container">
-	    		
-	    	</div>
+
+	    	<!-- container for displaying recommendations -->
+	    	
 	    </div>
 	
 
@@ -60,29 +62,37 @@
 		cells look like regular rectangles.
 	*/
 	var random_factor = 0.3
-	//	The opacity of cells in a background
+	//	The opacity of cells from background
 	var opacity_background = 1
-	//	The opacity of cells in a foreground
+	//	The opacity of cells from foreground
 	var opacity_foreground = 0.85
 
-	var IS_BACKGROUND = 0, IS_TOPICS = 1, IS_DOCS = 2,
-		MODE_MAP = 0, MODE_DOCS = 1;
+	//	Constants that defines what type of cells drawVoronoi() will draw:
+	//	(Of course it should be more universal then now)
+	var IS_BACKGROUND = 0,		//	Draw cells only, without any titles
+		IS_TOPICS = 1,			//	Draw cells with topics
+		IS_DOCS = 2,			//	Draw cells with documets
+
+	//	Constants for display_mode function:
+		MODE_MAP = 0,			//	Display map only
+		MODE_DOCS = 1;			//	Display documents and recommendations
 
 	//the dictionary with the information about topics
 	var topics_data;
-/*
-	// async request for topics hierarchy
+
+	//	Uncomment this if you want to fetch topics from server...
+	/*
 	$.ajax({url: "http://localhost:3000/get-topics", success: function(result) {
 		topics_data = result;
-		initialize()
+		initialize_knowledge_map()
 	}});  
-*/
-
-	// get topics data from dump
+	*/
+	//	... and remove this
 	topics_data = topics_dump;
+
+
 	var topic_keys = Object.keys(topics_data);
 	
-	//display_mode(MODE_DOCS);
 	initialize_knowledge_map(topics_data);
 
 	function display_mode(mode) {
@@ -118,41 +128,33 @@
 	*/
 	function initialize_knowledge_map(topics_data) {
 
+		display_mode(MODE_MAP);
+
 		/*
 		Calculate svg canvas size
 		TODO: Exclude hardcoded constant "120" = 2*svg.padding-left (placed in index.css) 
 		*/
 		
-		//SVG canvas for knowledge map drawing
-
-		var svg_container = document.getElementById("left_container");
+		//	SVG canvas for knowledge map drawing
+		var svg_container = document.getElementById("main_container");
 		var svg_width = svg_container.offsetWidth - 120, svg_height = Number(svg_width*0.5);
 		var svg = d3.select(document.getElementById("knowledge_map_svg_container"));
 
 		svg.attr("width", svg_width).attr("height", svg_height)
 			.attr("viewBox", "0 0 " + svg_width + " " + svg_height)
 	
-		// Dummy way to count the number of layers
-		var max_level = topic_keys.reduce(function(max, key) {return topics_data[key].level_id > max ? topics_data[key].level_id : max}, 0)
-
-		// Split topics data into the array-per-level, add the "key" field into the structure of topic data
-		var levels = {}
-		for (var i = 0; i < max_level; i++) {
-			levels[i] = topic_keys.filter(function(key) {return topics_data[key].level_id == String(i)})
-			.map(function(key) {
-				var topic = topics_data[key];
-				topic["key"] = key;
-				topic["is_last_level"] = i == max_level ? true : false;
-				return topic;
-			})
-		} 
+		//	Dummy way to count the number of layers.
+		var max_level = topic_keys.reduce(function(max, key) {
+			return topics_data[key].level_id > max ? topics_data[key].level_id : max}, 0)
 		
+		//	Add two fields to all themes: its key and indicator of bottom layer
 		for (var i = 0; i < topic_keys.length; i++) {
 			var key = topic_keys[i], topic = topics_data[key];
 			topic["key"] = key;
 			topic["is_last_level"] = topic.level_id == max_level ? true : false;
 		} 
 
+		//	Add imaginary layer with one cell: root. 
 		topics_data["root"] = {
 			"level_id" : "-1",
 			"top_words" : "Root", 
@@ -160,12 +162,12 @@
 		}
 
 
-		//draw the backgound cells without any titles on it
-		drawVoronoi(svg, [], d3.range(topics_data["root"].children.length*4), opacity_background, 0)
+		//draw backgound cells without any titles on it
+		drawVoronoi(svg, [], d3.range(topics_data["root"].children.length*4), opacity_background, IS_BACKGROUND)
 
-		//draw the main cells with root-level topics
+		//draw cells with top-level topics
 		drawVoronoi(svg, ["root"], topics_data["root"].children.map(function(key) { return topics_data[key]}),
-		 opacity_foreground, 1);
+		 opacity_foreground, IS_TOPICS);
 	}
 
 	//	update the list of chosen topics on the navigation bar
@@ -188,24 +190,18 @@
 
 	/*
 		Function that draws a level of knowledge map
-		type = {
-			background => 0
-			topics => 1
-			documents => 2
-		}
 	*/
 	function drawVoronoi(svg, selected_topics_list,
 		 topics_list, opacity, type) {
 
-		var N_cells = topics_list.length;
-
-		var width = +svg.attr("width"), height = +svg.attr("height")
+		var N_cells = topics_list.length,
+			width = +svg.attr("width"), height = +svg.attr("height");
 
 		// Calculate the number of columns and rows that's enough to contain N_points cells
 		function calculateColsRowsNum(width, height, N_points) {
 			var alpha = width/height;
 			var num_points_h = Math.ceil(Math.sqrt(N_points/alpha)),
-			num_points_w = Math.ceil(N_points/num_points_h);
+				num_points_w = Math.ceil(N_points/num_points_h);
 			return [num_points_w, num_points_h]
 		}
 
@@ -267,7 +263,7 @@
 			updateChosenTopicsList(selected_topics_list, topics_data, svg);
 			
 			var y_margin_between_topic_words = 20;
-			for (var i = 0; i < 3; i++) {
+			for (var i = 0; i < 4; i++) {
 				drawSingleTitle(svg, topics_list,
 					i*y_margin_between_topic_words,
 					topics_list.map(function(topic){return topic.top_words[i]}),
@@ -332,7 +328,7 @@
 				.selectAll("text")
 				//	Data for a cell title is 5-tuple:
 				.data(d3.zip(
-					data,											// The topic info (json element)
+					data,													// The topic info (json element)
 					points,			 										// The coordinate a cell center					 				
 				 	d3.range(N_cells).map(function(x){return shift}),		// The y-shift from a cell center for this title 												
 					titles													// The number of displayed word from top_words array
