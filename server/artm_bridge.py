@@ -35,7 +35,7 @@ T = lambda lid, tid: "level_%d_%s" % (lid, tid)
 unT = lambda t: list(map(int, t[6:].split("_topic_")))
 
 # Change this constants if model changes
-Ts = [18, 54]
+Ts = [10, 30, 70]
 # TODO: index sorting may not be neccessary when we support multiple collections
 rec_theta = artm_model["theta"][Ts[0]].T.sort_index()
 
@@ -96,10 +96,10 @@ while True:
         response = topics
     elif message["act"] == "get_documents":
         lid, tid = unT(message["topic_id"])
-        if lid >= len(Ts) or tid >= sum(Ts):
+        if lid >= len(Ts) or tid >= Ts[lid]:
             response = "Incorrect `topic_id`"
         else:
-            ptd = artm_model["theta"].iloc[tid]
+            ptd = artm_model["theta"].iloc[sum(Ts[:lid]) + tid]
             indices = ptd[ptd > DOC_THRESHOLD].index
             # TODO: fix when we support multiple collections
             docs_ids = list(map(lambda doc_id: "pn_%d" % (doc_id + 1), indices))
