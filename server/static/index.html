@@ -39,11 +39,11 @@
 	    </div>
 
 	    <div class="row-fluid" id = "main_container">
-	    	<div class="span10" id="left_container">
+	    	<div class="span11" id="left_container">
 	    		<svg id="knowledge_map_svg_container"></svg>
-	    		
+	    		<div class="span12" id="documents_container"></div>
 	    	</div>
-	    	<div class="span2" id="right_container">
+	    	<div class="span1" id="right_container">
 	    		
 	    	</div>
 	    </div>
@@ -52,21 +52,6 @@
 
 	<!-- The very main script -->
 	<script type="text/javascript">
-
-
-	/*
-		Calculate svg canvas size
-		TODO: Exclude hardcoded constant "120" = 2*svg.padding-left (placed in index.css) 
-	*/
-	
-	//SVG canvas for knowledge map drawing
-
-	var svg_container = document.getElementById("left_container");
-	var svg_width = svg_container.offsetWidth - 120, svg_height = Number(svg_width*0.5);
-	var svg = d3.select(document.getElementById("knowledge_map_svg_container"));
-
-	svg.attr("width", svg_width).attr("height", svg_height)
-		.attr("viewBox", "0 0 " + svg_width + " " + svg_height)
 
 	/*
 		Each cell center is placed in it's own vertex of grid by default. 
@@ -80,7 +65,8 @@
 	//	The opacity of cells in a foreground
 	var opacity_foreground = 0.85
 
-	var IS_BACKGROUND = 0, IS_TOPICS = 1, IS_DOCS = 2;
+	var IS_BACKGROUND = 0, IS_TOPICS = 1, IS_DOCS = 2,
+		MODE_MAP = 0, MODE_DOCS = 1;
 
 	//the dictionary with the information about topics
 	var topics_data;
@@ -96,15 +82,55 @@
 	topics_data = topics_dump;
 	var topic_keys = Object.keys(topics_data);
 	
-	initialize_knowledge_map(svg, topics_data);
-	
+	//display_mode(MODE_DOCS);
+	initialize_knowledge_map(topics_data);
+
+	function display_mode(mode) {
+		var svg = document.getElementById("knowledge_map_svg_container"),
+			left_container = document.getElementById("left_container"),
+			right_container = document.getElementById("right_container"),
+			documents_container = d3.select(document.getElementById("documents_container"));
+
+			d3.select(right_container).selectAll("ui").remove();
+			documents_container.selectAll("h1").remove();
+			documents_container.selectAll("p").remove();
+
+		switch (mode) {
+			case MODE_MAP:
+				svg.setAttribute("display", "inherit");
+				left_container.setAttribute("class", "span11");
+				right_container.setAttribute("class", "span1");
+				//alert("MODE_MAP");
+				break;
+			case MODE_DOCS:
+				svg.setAttribute("display", "none");
+				left_container.setAttribute("class", "span8");
+				right_container.setAttribute("class", "span4");
+				//alert("MODE_DOCS");
+				break;
+		}
+
+	}
 
 	/*
 		Function that stars initialization of knowledge map and other interface elements elements.
 		Designed to be the callback after topics data is aquired.
 	*/
+	function initialize_knowledge_map(topics_data) {
 
-	function initialize_knowledge_map(svg, topics_data) {
+		/*
+		Calculate svg canvas size
+		TODO: Exclude hardcoded constant "120" = 2*svg.padding-left (placed in index.css) 
+		*/
+		
+		//SVG canvas for knowledge map drawing
+
+		var svg_container = document.getElementById("left_container");
+		var svg_width = svg_container.offsetWidth - 120, svg_height = Number(svg_width*0.5);
+		var svg = d3.select(document.getElementById("knowledge_map_svg_container"));
+
+		svg.attr("width", svg_width).attr("height", svg_height)
+			.attr("viewBox", "0 0 " + svg_width + " " + svg_height)
 	
 		// Dummy way to count the number of layers
 		var max_level = topic_keys.reduce(function(max, key) {return topics_data[key].level_id > max ? topics_data[key].level_id : max}, 0)
@@ -152,6 +178,7 @@
 				//.attr("class", "active")
 				.append("a").attr("href", "#").text(function(d) {return topics_data[d].top_words + " > "})
 				.on("click", function(key) {
+					display_mode(MODE_MAP);
 					new_selected_topics_list = selected_topics_list.slice(0, selected_topics_list.indexOf(key) + 1)
 					var topics_list = topics_data[key].children.map(function(key){return topics_data[key]});
 					drawVoronoi(svg, [], d3.range(topics_list.length*4), opacity_background, IS_BACKGROUND)
@@ -213,21 +240,29 @@
 
 		var voronoi = d3.voronoi().extent([[-1, -1], [width + 1, height + 1]]);
 
-		//generate cells 
-		var polygon = svg.append("g")
-			.attr("class", "polygons")
-			.selectAll("path")
-			.data(d3.zip(topics_list,
-			 		voronoi.polygons(points)
-			 		))
-			.enter().append("path")
-			.on("click", on_click_cell)
-			.call(redrawPolygon)
-			;
+		if (type == IS_BACKGROUND) {
+			var polygon = svg.append("g")
+				.attr("class", "polygons")
+				.selectAll("path")
+				.data(d3.zip(topics_list,
+				 		voronoi.polygons(points)
+				 		))
+				.enter().append("path")
+				.call(redrawPolygon);
+		}
 
-		
-
-		if(type == IS_TOPICS) {
+		if (type == IS_TOPICS) {
+			//generate cells 
+			var polygon = svg.append("g")
+				.attr("class", "polygons")
+				.selectAll("path")
+				.data(d3.zip(topics_list,
+				 		voronoi.polygons(points)
+				 		))
+				.enter().append("path")
+				.on("click", on_click_cell_topic)
+				.call(redrawPolygon)
+				;
 			//generate a list of chosen topics on a navigation bar
 			updateChosenTopicsList(selected_topics_list, topics_data, svg);
 			
@@ -235,85 +270,78 @@
 			for (var i = 0; i < 3; i++) {
 				drawSingleTitle(svg, topics_list,
 					i*y_margin_between_topic_words,
-					topics_list.map(function(topic){return topic.top_words[i]})
+					topics_list.map(function(topic){return topic.top_words[i]}),
+					on_click_cell_topic
 				);
 			}
 
-			//draw titles for polygons 
-			function drawSingleTitle(svg, data, shift, titles) {
-				var titles = svg.append("g")
-					.attr("class", "titles")
-					.selectAll("text")
-					//	Data for a cell title is 5-tuple:
-					.data(d3.zip(
-						data,											// The topic info (json element)
-						points,			 										// The coordinate a cell center					 				
-					 	d3.range(N_cells).map(function(x){return shift}),		// The y-shift from a cell center for this title 												
-						titles													// The number of displayed word from top_words array
-					))
-					.enter().append("text")
-					.on("click", on_click_cell)
-					.call(redrawTitle)
-					;
+
+			//	Function that calls when a cell or a topic is clicked
+			function on_click_cell_topic() {
+				var topic = this.__data__[0];
+				//	Get all children of this cell
+				var topics_list = topic.children.map(function(key){return topics_data[key]});
+
+				//	Append the chosen topic to the list that will be displayed on the navigation bar
+				selected_topics_list.push(topic.key)
+				//	TODO: Fix this shit. Works ONLY with 3-layer models, obviously 
+				if (!topic.is_last_level) {
+					drawVoronoi(svg, [], d3.range(topic.children.length*4), opacity_background, IS_BACKGROUND)
+					drawVoronoi(svg, selected_topics_list, topics_list, opacity_foreground, IS_TOPICS)
+				} else {
+					updateChosenTopicsList(selected_topics_list, topics_data, svg);
+					var documents = get_documents_dump;
+					drawVoronoi(svg, chosen_topics_list, documents, opacity_background, IS_DOCS);
+				}
+
 			}
+			
 		}
 
 		if (type == IS_DOCS) {
-				
-		}
+			//generate cells 
+			var polygon = svg.append("g")
+				.attr("class", "polygons")
+				.selectAll("path")
+				.data(d3.zip(topics_list,
+				 		voronoi.polygons(points)
+				 		))
+				.enter().append("path")
+				.on("click", on_click_cell_doc)
+				.call(redrawPolygon)
+				;
 
-		//	Function that calls when a cell is clicked
-		function on_click_cell() {
-			var topic = this.__data__[0];
-			//	Get all children of this cell
-			var topics_list = topic.children.map(function(key){return topics_data[key]});
+			drawSingleTitle(svg, topics_list, 0,
+				topics_list.map(function(doc) {return doc.doc_id}),
+				on_click_cell_doc
+				)
 
-			//	Append the chosen topic to the list that will be displayed on the navigation bar
-			selected_topics_list.push(topic.key)
-			//	TODO: Fix this shit. Works ONLY with 3-layer models, obviously 
-			if (!topic.is_last_level) {
-				drawVoronoi(svg, [], d3.range(topic.children.length*4), opacity_background, IS_BACKGROUND)
-				drawVoronoi(svg, selected_topics_list, topics_list, opacity_foreground, IS_TOPICS)
-			} else {
-				updateChosenTopicsList(selected_topics_list, topics_data, svg);
-				var documents = get_documents_dump;
-				//alert(Object.keys(documents[0]))
+			function on_click_cell_doc() {
+				doc = this.__data__[0];
+				display_mode(MODE_DOCS);
+				display_document(doc);
+				display_recommendations(doc, recommendations_dump_228);
 			}
 
 		}
 
-
-		//	This part has to be overwritten
-		function drawDocumentContent(selected_topics_list, topic) {
-			function onClickPrevButton() {
-				selected_topics_list.pop()
-				var topic_key = selected_topics_list.pop()
-				var topic = topics_data[topic_key]
-				//alert(topic_key)
-				var topics_list = []
-				for (var i = 0; i < topic.children.length; i++) {
-					topics_list.push(topics_data[topic.children[i]])
-				}
-				selected_topics_list.push(topic.key)
-				var svg = d3.select(svg).attr("display", 1)
-				drawVoronoi(svg, topic.children.length*4, [],
-					d3.range(topic.children.length*4), 1, IS_BACKGROUND)
-				drawVoronoi(svg, topic.children.length, selected_topics_list,
-					topics_list, opacity_background, IS_TOPICS)
-			}
-
-			d3.select("body").append("H1").text(topic.top_words.toString())
-			d3.select('body').append("p").text(d3.range(40).map(function(x){
-				return topic.top_words.toString() + "\n"
-			}))
-			document.getElementById('home_button').onclick = function(x) {
-				svg.attr("display", "inherit")
-				drawVoronoi(svg, levels[0].length*4, [], d3.range(N_cells*4), 1, IS_BACKGROUND)
-				drawVoronoi(svg, levels[0].length, [], levels[0], opacity_background, IS_TOPICS);
-			}
-
+		//draw titles for polygons 
+		function drawSingleTitle(svg, data, shift, titles, on_click_listener) {
+			var titles = svg.append("g")
+				.attr("class", "titles")
+				.selectAll("text")
+				//	Data for a cell title is 5-tuple:
+				.data(d3.zip(
+					data,											// The topic info (json element)
+					points,			 										// The coordinate a cell center					 				
+				 	d3.range(N_cells).map(function(x){return shift}),		// The y-shift from a cell center for this title 												
+					titles													// The number of displayed word from top_words array
+				))
+				.enter().append("text")
+				.on("click", on_click_listener)
+				.call(redrawTitle)
+				;
 		}
-
 
 		//	Function that calls right after cells creation.
 		//	Do some routines to finalize the appearance of cells (colors, opacity etc.)
@@ -341,6 +369,30 @@
 				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5) + d[2];
 				return y;})
 		}
+	}
+
+	function display_recommendations(doc, recommendations_data) {
+		var right_container = d3.select(document.getElementById("right_container"));
+		
+		var recommendation_blocks = right_container.append("ui").attr("class", "thumbnails")
+			.selectAll("li").data(recommendations_data).enter()
+			.append("li").attr("class", "span10")
+			.append("a").attr("class", "thumbnail")
+		
+		recommendation_blocks.on("click", function(doc) {
+			display_mode(MODE_DOCS);
+			display_document(doc);
+			display_recommendations(doc, recommendations_data);
+		})
+		recommendation_blocks.append("h6").text(function(doc){return doc.title});
+		recommendation_blocks.append("p").text(function(doc){return doc.markdown.split(".")
+			.slice(0, 1).join(".")});
+	}
+
+	function display_document(doc) {
+		var documents_container = d3.select(document.getElementById("documents_container"));
+		documents_container.append("h1").attr("align", "center").text(doc.title);
+		documents_container.append("p").text(doc.markdown);
 	}
 
 	</script>

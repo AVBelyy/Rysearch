@@ -7,6 +7,10 @@
 		stroke: #000;
 	}
 
+	.hidden {
+		"display: "none"
+	}
+
 	svg {
 		padding-left: 60px;
 	}
