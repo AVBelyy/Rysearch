@@ -168,9 +168,9 @@
 		}
 	*/
 	function drawVoronoi(svg, selected_topics_list,
-		 topic_list, opacity, type) {
+		 topics_list, opacity, type) {
 
-		var N_cells = topic_list.length;
+		var N_cells = topics_list.length;
 
 		var width = +svg.attr("width"), height = +svg.attr("height")
 
@@ -217,9 +217,9 @@
 		var polygon = svg.append("g")
 			.attr("class", "polygons")
 			.selectAll("path")
-			.data(d3.zip(d3.range(N_cells),
-			 		voronoi.polygons(points),
-			 		topic_list))
+			.data(d3.zip(topics_list,
+			 		voronoi.polygons(points)
+			 		))
 			.enter().append("path")
 			.on("click", on_click_cell)
 			.call(redrawPolygon)
@@ -233,21 +233,23 @@
 			
 			var y_margin_between_topic_words = 20;
 			for (var i = 0; i < 3; i++) {
-				drawSingleTitle(svg, i, i*y_margin_between_topic_words);
+				drawSingleTitle(svg, topics_list,
+					i*y_margin_between_topic_words,
+					topics_list.map(function(topic){return topic.top_words[i]})
+				);
 			}
 
 			//draw titles for polygons 
-			function drawSingleTitle(svg, word_number, shift) {
+			function drawSingleTitle(svg, data, shift, titles) {
 				var titles = svg.append("g")
 					.attr("class", "titles")
 					.selectAll("text")
 					//	Data for a cell title is 5-tuple:
-					.data(d3.zip(d3.range(N_cells),								// The number of a cell
-						points,			 										// The coordinate a cell center
-					 	topic_list,												// The topic info (json element)
-					 	d3.range(N_cells).map(function(x){return shift}),		// The y-shift from a cell center for this title 
- 																		
-						d3.range(N_cells).map(function(x){return word_number})	// The number of displayed word from top_words array
+					.data(d3.zip(
+						data,											// The topic info (json element)
+						points,			 										// The coordinate a cell center					 				
+					 	d3.range(N_cells).map(function(x){return shift}),		// The y-shift from a cell center for this title 												
+						titles													// The number of displayed word from top_words array
 					))
 					.enter().append("text")
 					.on("click", on_click_cell)
@@ -262,21 +264,20 @@
 
 		//	Function that calls when a cell is clicked
 		function on_click_cell() {
-			var topic_num = this.__data__[0];
-			var topic = this.__data__[2];
+			var topic = this.__data__[0];
 			//	Get all children of this cell
-			var topic_list = topic.children.map(function(key){return topics_data[key]});
+			var topics_list = topic.children.map(function(key){return topics_data[key]});
 
 			//	Append the chosen topic to the list that will be displayed on the navigation bar
 			selected_topics_list.push(topic.key)
 			//	TODO: Fix this shit. Works ONLY with 3-layer models, obviously 
 			if (!topic.is_last_level) {
 				drawVoronoi(svg, [], d3.range(topic.children.length*4), opacity_background, IS_BACKGROUND)
-				drawVoronoi(svg, selected_topics_list, topic_list, opacity_foreground, IS_TOPICS)
+				drawVoronoi(svg, selected_topics_list, topics_list, opacity_foreground, IS_TOPICS)
 			} else {
 				updateChosenTopicsList(selected_topics_list, topics_data, svg);
 				var documents = get_documents_dump;
-				alert(Object.keys(documents[0]))
+				//alert(Object.keys(documents[0]))
 			}
 
 		}
@@ -289,16 +290,16 @@
 				var topic_key = selected_topics_list.pop()
 				var topic = topics_data[topic_key]
 				//alert(topic_key)
-				var topic_list = []
+				var topics_list = []
 				for (var i = 0; i < topic.children.length; i++) {
-					topic_list.push(topics_data[topic.children[i]])
+					topics_list.push(topics_data[topic.children[i]])
 				}
 				selected_topics_list.push(topic.key)
 				var svg = d3.select(svg).attr("display", 1)
 				drawVoronoi(svg, topic.children.length*4, [],
 					d3.range(topic.children.length*4), 1, IS_BACKGROUND)
 				drawVoronoi(svg, topic.children.length, selected_topics_list,
-					topic_list, opacity_background, IS_TOPICS)
+					topics_list, opacity_background, IS_TOPICS)
 			}
 
 			d3.select("body").append("H1").text(topic.top_words.toString())
@@ -331,13 +332,13 @@
 			var cell_size = getCellSize(width, height, N_cells),
 				cell_width = cell_size[0], cell_height = cell_size[1];
 			title.text(function(d) {
-				return d[2].top_words[d[4]]
+				return d[3]
 			})
 			.attr("x", function(d) {
 				var x = Math.floor(d[1][0]) - Math.floor((1-2*random_factor)*cell_width*0.5);
 				return x;})
 			.attr("y", function(d) {
-				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5) + d[3];
+				var y = Math.floor(d[1][1]) - Math.floor((1-2*random_factor)*cell_height*0.5) + d[2];
 				return y;})
 		}
 	}
