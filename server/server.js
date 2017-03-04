@@ -17,7 +17,7 @@ sock.on("message", function (reply) {
     reply = JSON.parse(reply);
     if (reply.act == "get_topics") {
         artm_topics = reply.data;
-    } else if (reply.act == "get_recommendations") {
+    } else if (reply.act == "get_recommendations" || reply.act == "get_documents") {
         var res = routing_queue[reply.id];
         delete routing_queue[reply.id];
         res.send(reply.data);
@@ -37,6 +37,17 @@ app.get("/get-topics", function (req, res) {
         // TODO: error handling
         res.send("error -- data not ready");
     }
+});
+
+app.get("/get-documents", function (req, res) {
+    var topic_id = req.query.topic_id;
+    var uuid = uuidV4();
+    routing_queue[uuid] = res;
+    sock.send(JSON.stringify({
+        "act": "get_documents",
+        "topic_id": topic_id,
+        "id": uuid,
+    }));
 });
 
 app.get("/get-recommendations", function (req, res) {
