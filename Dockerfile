@@ -27,8 +27,6 @@ RUN apt-get install -y wget libtool pkg-config build-essential autoconf automake
     ldconfig
 
 RUN apt-get install -y git
-RUN cd ~ && \
-    wget https://www.dropbox.com/s/rwvlrny32b9n9f7/hartm.mdl
 RUN ln -s /usr/bin/nodejs /usr/bin/node
 
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6 && \
@@ -36,10 +34,11 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14
     apt-get update && \
     apt-get -y install mongodb-org
 
-RUN cd ~ && \
-    wget -qO- https://www.dropbox.com/s/uy4nfqr1m4spvvu/datasets.tar.gz | tar xzv
-
 RUN apt-get -y install tmux
+
+RUN cd ~ && \
+    wget -qO- https://www.dropbox.com/s/uy4nfqr1m4spvvu/datasets.tar.gz | tar xzv && \
+    wget https://www.dropbox.com/s/h75rz3hfvpzanji/hartm.mdl
 
 EXPOSE 3000
 

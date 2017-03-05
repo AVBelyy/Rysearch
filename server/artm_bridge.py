@@ -12,9 +12,9 @@ MODEL_PATH = "hartm.mdl"
 ZMQ_PORT = 2411
 
 EDGE_THRESHOLD = 0.05
-DOC_THRESHOLD = 0.3
 TOP_N_WORDS = 3
-TOP_N_REC_DOCS = 10
+TOP_N_REC_DOCS = 5
+TOP_N_TOPIC_DOCS = 10
 
 # Initialize MongoDB
 mongo_client = MongoClient()
@@ -116,9 +116,9 @@ while True:
             response = "Incorrect `topic_id`"
         else:
             ptd = artm_model["theta"].loc[artm_tid]
-            indices = ptd[ptd > DOC_THRESHOLD].index
+            indices = ptd.sort_values()[-TOP_N_TOPIC_DOCS:].index
             # TODO: fix when we support multiple collections
-            docs_ids = list(map(lambda doc_id: "pn_%d" % (doc_id + 1), indices))
+            docs_ids = list(map(lambda doc_id: "pn_%d" % doc_id, indices))
             response = get_documents_by_ids(docs_ids)
     elif message["act"] == "get_recommendations":
         # TODO: this only works with a single collection of documents (Postnauka) now
