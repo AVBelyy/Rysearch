@@ -36,7 +36,7 @@ T = lambda lid, tid: "level_%d_%s" % (lid, tid)
 unT = lambda t: list(map(int, t[6:].split("_topic_")))
 
 # Change this constants if model changes
-Ts = [10, 30, 70]
+Ts = [20, 77]
 # TODO: index sorting may not be neccessary when we support multiple collections
 rec_theta = artm_model["theta"][:Ts[0]].T.sort_index()
 
