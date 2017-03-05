@@ -15,6 +15,15 @@
 		padding-left: 60px;
 	}
 
+	.chosen_topic {
+		font-family: 'Anton', sans-serif;
+		font-size: 16px;
+		font-style: normal;
+		font-variant: normal;
+		font-weight: normal;
+		line-height: 15.4px;
+	}
+
 	.polygons #selected-polygon {
 		fill: #f00;
 	}
