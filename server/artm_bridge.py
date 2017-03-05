@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import json
 import zmq
+import re
 
 from sklearn.metrics.pairwise import pairwise_distances
 from pymongo import MongoClient
@@ -37,29 +38,33 @@ unT = lambda t: list(map(int, t[6:].split("_topic_")))
 # Change this constants if model changes
 Ts = [10, 30, 70]
 # TODO: index sorting may not be neccessary when we support multiple collections
-rec_theta = artm_model["theta"][Ts[0]].T.sort_index()
+rec_theta = artm_model["theta"][:Ts[0]].T.sort_index()
 
-# Create topic names
+# Create subject topic names
 for lid, phi in enumerate(phis):
     names = phi.index[phi.values.argsort(axis=0)[-TOP_N_WORDS:][::-1].T]
     for tid, top_words in zip(phi.columns, names):
-        topics[T(lid, tid)] = {
-            "level_id":  lid,
-            "top_words": list(top_words),
-            "parents":   [],
-            "children":  [],
-        }
+        # subject topic names are "topic_X", where X = 0, 1, ...
+        # background topic names are "background_X", where X = 0, 1, ...
+        if re.match("^topic_\d+$", tid):
+            topics[T(lid, tid)] = {
+                "level_id":  lid,
+                "top_words": list(top_words),
+                "parents":   [],
+                "children":  [],
+            }
 
 # Collect topic edges
 for lid, psi in enumerate(psis):
     density = 0
     psi = psi > EDGE_THRESHOLD
     for tid1 in psi.columns:
-        for tid2 in psi.index:
-            if psi.loc[tid2, tid1]:
-                density += 1
-                topics[T(lid, tid1)]["children"].append(T(lid + 1, tid2))
-                topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
+        if re.match("^topic_\d+$", tid1):
+            for tid2 in psi.index:
+                if re.match("^topic_\d+$", tid2) and psi.loc[tid2, tid1]:
+                    density += 1
+                    topics[T(lid, tid1)]["children"].append(T(lid + 1, tid2))
+                    topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
     print("Level", lid, "density:", density, "/", psi.shape[0] * psi.shape[1])
 
 # Initialize ZeroMQ
@@ -69,6 +74,16 @@ socket.bind("tcp://*:%d" % ZMQ_PORT)
 
 def hellinger_dist(p, q):
     return norm(np.sqrt(p) - np.sqrt(q))
+
+def get_artm_tid(lid, tid):
+    if lid < 0 or lid > len(Ts) or tid < 0 or tid >= sum(Ts):
+        return None
+
+    # This is due to hARTM bug
+    if lid == 0:
+        return "level_%d_topic_%d" % (lid, tid)
+    else:
+        return "level%d_topic_%d" % (lid, tid)
 
 def get_documents_by_ids(docs_ids):
     fields = {"title": 1, "markdown": 1}
@@ -96,10 +111,11 @@ while True:
         response = topics
     elif message["act"] == "get_documents":
         lid, tid = unT(message["topic_id"])
-        if lid >= len(Ts) or tid >= Ts[lid]:
+        artm_tid = get_artm_tid(lid, tid)
+        if artm_tid is None:
             response = "Incorrect `topic_id`"
         else:
-            ptd = artm_model["theta"].iloc[sum(Ts[:lid]) + tid]
+            ptd = artm_model["theta"].loc[artm_tid]
             indices = ptd[ptd > DOC_THRESHOLD].index
             # TODO: fix when we support multiple collections
             docs_ids = list(map(lambda doc_id: "pn_%d" % (doc_id + 1), indices))
