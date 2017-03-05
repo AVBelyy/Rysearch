@@ -355,19 +355,20 @@ function display_recommendations(doc, recommendations_data) {
     recommendation_blocks.append("p")
         .attr("class", "recommendation_text")
         .text(function(doc) {
-            return doc.markdown.split(".").slice(0, 1).join(".");
+            return doc.markdown.split(".").slice(0, 1).join(".") + "…";
         });
 }
 
 function display_document(doc) {
     var document_container = d3.select(document.getElementById("document_container"));
+    var doc_text = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
     document_container.append("h1")
         .attr("align", "center")
         .attr("class", "document_title")
         .text(doc.title);
     document_container.append("p")
         .attr("class", "document_text")
-        .text(doc.markdown);
+        .html(doc_text);
 }
 
 function onclickDocumentCell(doc) {
