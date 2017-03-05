@@ -146,7 +146,8 @@ function updateChosenTopicsList(selected_topics_list, svg) {
     d3.select(document.getElementById('chosen_topics_list'))
       .selectAll("li").data(selected_topics_list).enter().append("li")
       //.attr("class", "active")
-      .append("a").attr("href", "#").text(function(d) {
+        .append("a").attr("href", "#").attr("class", "chosen_topic")
+        .text(function(d) {
           return topics_data[d].top_words + " > ";
       })
       .on("click", function(key) {
@@ -280,10 +281,16 @@ function drawVoronoi(svg, selected_topics_list, topics_list, opacity, type) {
             .enter().append("path")
             .on("click", function (data) { onclickDocumentCell(data[0]); })
             .call(redrawPolygon);
-
+        //  draw ids
         drawSingleTitle(svg, topics_list, 0, topics_list.map(function(doc) {
             return doc.doc_id
         }), function (data) { onclickDocumentCell(data[0]) });
+        //  draw titles
+        drawSingleTitle(svg, topics_list, 25, topics_list.map(function(doc) {
+            var splitted_doc_title = doc.title.split(" ");
+            return splitted_doc_title.length < 5 ? doc.title : 
+                splitted_doc_title.slice(0, 5).join(" ") + "...";
+        }), function(data) {onclickDocumentCell(data[0])} );
     }
 
     //  Draw titles for polygons.
