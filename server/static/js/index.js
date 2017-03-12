@@ -21,6 +21,9 @@ var IS_BACKGROUND = 0, // Draw cells only, without any titles.
 //  The dictionary with the information about topics.
 var topics_data;
 
+// FoamTree control object.
+var foamtree;
+
 //  Yes, I know that it should be in .css, it's here for debugging.
 var yellow_colorscheme = {
     "0": "#FFAE00",
@@ -91,6 +94,7 @@ function display_mode(mode) {
         case MODE_MAP:
             map.style.display = "inherit";
             overview_container.style.display = "none";
+            foamtree.zoom(foamtree.get("dataObject"));
             break;
         case MODE_DOCS:
             map.style.display = "none";
@@ -132,9 +136,11 @@ function initialize_knowledge_map() {
         return response.length ? response : undefined;
     }
 
-    var foamtree = new CarrotSearchFoamTree({
+    foamtree = new CarrotSearchFoamTree({
         id: "knowledge_map_container",
         parentFillOpacity: 0.9,
+        rolloutDuration: 0,
+        pullbackDuration: 0,
 
         onGroupHold: function(e) {
             if (!e.secondary && e.group.is_last_level && !e.group.groups) {
