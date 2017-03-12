@@ -1,9 +1,9 @@
-//  Constants for display_mode function:
+//  Constants for displayMode function:
 MODE_MAP = 0,      // Display map only.
 MODE_DOCS = 1;     // Display documents and recommendations.
 
 //  The dictionary with the information about topics.
-var topics_data;
+var topicsData;
 
 // FoamTree control object.
 var foamtree;
@@ -13,47 +13,47 @@ var foamtree;
 window.addEventListener("load", function() {
     // Load topic hierarchy.
     $.ajax({url: "http://localhost:3000/get-topics", success: function(result) {
-        topics_data = result;
-        initialize_knowledge_map();
+        topicsData = result;
+        initializeKnowledgeMap();
     }});
 
     // TODO: temporary switch
     $(".brand").click(function() {
-        display_mode(MODE_MAP);
+        displayMode(MODE_MAP);
     });
 });
 
-function display_mode(mode) {
-    var map = document.getElementById("knowledge_map_container"),
-        overview_container = document.getElementById("overview_container"),
-        document_container = d3.select(document.getElementById("document_container")),
-        recommendations_container = d3.select(document.getElementById("recommendations_container"));
+function displayMode(mode) {
+    var mapContainer = document.getElementById("knowledge_map_container"),
+        overviewContainer = document.getElementById("overview_container"),
+        documentContainer = d3.select(document.getElementById("document_container")),
+        recommendationsContainer = d3.select(document.getElementById("recommendations_container"));
 
-    recommendations_container.selectAll("ul").remove();
-    document_container.selectAll("h1").remove();
-    document_container.selectAll("p").remove();
+    recommendationsContainer.selectAll("ul").remove();
+    documentContainer.selectAll("h1").remove();
+    documentContainer.selectAll("p").remove();
 
     switch (mode) {
         case MODE_MAP:
-            map.style.display = "inherit";
-            overview_container.style.display = "none";
+            mapContainer.style.display = "inherit";
+            overviewContainer.style.display = "none";
             foamtree.zoom(foamtree.get("dataObject"));
             break;
         case MODE_DOCS:
-            map.style.display = "none";
-            overview_container.style.display = "inherit";
+            mapContainer.style.display = "none";
+            overviewContainer.style.display = "inherit";
             break;
     }
 }
 
 /*  Function that starts initialization of knowledge map and other elements of interface. */
-function initialize_knowledge_map() {
+function initializeKnowledgeMap() {
     // Initialize FoamTree
 
     // Calculate number of levels.
-    var max_level = 0;
-    for (var topicId in topics_data) {
-        max_level = Math.max(max_level, topics_data[topicId]["level_id"]);
+    var maxLevel = 0;
+    for (var topicId in topicsData) {
+        maxLevel = Math.max(maxLevel, topicsData[topicId]["level_id"]);
     }
 
     function getTopicGroups(parentName) {
@@ -65,13 +65,13 @@ function initialize_knowledge_map() {
             filterer = function(t) { return t["parents"].indexOf(parentName) != -1; };
         }
         var response = [];
-        for (var topicId in topics_data) {
-            var topic = topics_data[topicId];
+        for (var topicId in topicsData) {
+            var topic = topicsData[topicId];
             if (filterer(topic)) {
                 response.push({
                     label: topic["top_words"].join(", "),
                     id: topicId,
-                    is_last_level: topic["level_id"] == max_level,
+                    isLastLevel: topic["level_id"] == maxLevel,
                     groups: getTopicGroups(topicId)
                 });
             }
@@ -86,7 +86,7 @@ function initialize_knowledge_map() {
         pullbackDuration: 0,
 
         onGroupHold: function(e) {
-            if (!e.secondary && e.group.is_last_level && !e.group.groups) {
+            if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
                 loader.loadDocuments(e.group);
             } else {
                 this.open({ groups: e.group, open: !e.secondary });
@@ -102,9 +102,9 @@ function initialize_knowledge_map() {
             var toZoom;
             if (group) {
                 // Open on left-click, close on right-click
-                if (!e.secondary && group.is_last_level && !e.group.groups) {
+                if (!e.secondary && group.isLastLevel && !e.group.groups) {
                     loader.loadDocuments(group);
-                } else if (!e.secondary && group.is_doc) {
+                } else if (!e.secondary && group.isDoc) {
                     loader.showOverview(group);
                 } else {
                     this.open({ groups: group, open: !e.secondary });
@@ -148,14 +148,11 @@ function initialize_knowledge_map() {
                             group.groups = [];
                             for (var i in result) {
                                 var doc = result[i];
-                                //var splitted_doc_title = doc.title.split(" ");
-                                //var label = splitted_doc_title.length < 5 ? doc.title :
-                                //    splitted_doc_title.slice(0, 5).join(" ") + "…";
-                                var label = doc.title; // Uncomment the above to make shorter.
+                                var label = doc.title;
                                 group.groups.push({
                                     label: label,
                                     id: doc.doc_id,
-                                    is_doc: true
+                                    isDoc: true
                                 });
                             }
 
@@ -244,48 +241,49 @@ function initialize_knowledge_map() {
         };
     })(foamtree);
 
-    display_mode(MODE_MAP);
+    displayMode(MODE_MAP);
 }
 
-function display_recommendations(doc, recommendations_data) {
-    var recommendations_container = d3.select(document.getElementById("recommendations_container"));
+function displayRecommendations(doc, recommendationsData) {
+    var recommendationsContainer = d3.select(document.getElementById("recommendations_container"));
 
-    var recommendation_blocks = recommendations_container.append("ul")
+    var recommendationBlocks = recommendationsContainer.append("ul")
         .attr("class", "thumbnails")
-        .selectAll("li").data(recommendations_data).enter()
+        .selectAll("li").data(recommendationsData).enter()
         //.append("li").attr("class", "span10")
         .append("a").attr("class", "thumbnail");
 
-    recommendation_blocks.on("click", onclickDocumentCell);
-    recommendation_blocks.append("h6")
+    recommendationBlocks.on("click", onclickDocumentCell);
+    recommendationBlocks.append("h6")
         .attr("class", "recommendation_title")
         .text(function(doc) {
             return doc.title;
         });
-    recommendation_blocks.append("p")
+    recommendationBlocks.append("p")
         .attr("class", "recommendation_text")
         .text(function(doc) {
             return doc.markdown.split(".").slice(0, 1).join(".") + "…";
         });
 }
 
-function display_document(doc) {
-    var document_container = d3.select(document.getElementById("document_container"));
-    var doc_text = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
-    document_container.append("h1")
+function displayDocument(doc) {
+    var documentContainer = d3.select(document.getElementById("document_container"));
+    var docText = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
+    documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_title")
         .text(doc.title);
-    document_container.append("p")
+    documentContainer.append("p")
         .attr("class", "document_text")
-        .html(doc_text);
+        .html(docText);
 }
 
 function onclickDocumentCell(doc) {
-    display_mode(MODE_DOCS);
-    display_document(doc);
+    displayMode(MODE_DOCS);
+    displayDocument(doc);
+    // TODO: rewrite naming with heterogenity
     $.ajax({url: "http://localhost:3000/get-recommendations?doc_id=" + doc.doc_id.split("_")[1],
             success: function(result) {
-                display_recommendations(doc, result);
+                displayRecommendations(doc, result);
            }});
 }
