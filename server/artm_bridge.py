@@ -37,8 +37,10 @@ unT = lambda t: list(map(int, t[6:].split("_topic_")))
 
 # Change this constants if model changes
 Ts = [20, 77]
+all_topics = artm_model["theta"].index
+rec_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
 # TODO: index sorting may not be neccessary when we support multiple collections
-rec_theta = artm_model["theta"][:Ts[0]].T.sort_index()
+rec_theta = artm_model["theta"].T[rec_topics].sort_index()
 
 # Create subject topic names
 for lid, phi in enumerate(phis):
