@@ -85,18 +85,22 @@ def get_artm_tid(lid, tid):
     else:
         return "level%d_topic_%d" % (lid, tid)
 
-def get_documents_by_ids(docs_ids):
-    fields = {"title": 1, "markdown": 1}
+def get_documents_by_ids(docs_ids, with_texts=True):
+    fields = {"title": 1}
+    if with_texts:
+        fields["markdown"] = 1
     result = db.postnauka.find({"_id": {"$in": docs_ids}}, fields)
     result_map = dict(map(lambda v: (v["_id"], v), result))
     response = []
     for doc_id in docs_ids:
         doc = result_map[doc_id]
-        response.append({
+        res = {
             "doc_id":   doc["_id"],
             "title":    doc["title"],
-            "markdown": doc["markdown"]
-        })
+        }
+        if with_texts:
+            res["markdown"] = doc["markdown"]
+        response.append(res)
     return response
 
 print("Start serving ZeroMQ queries on port", ZMQ_PORT)
@@ -119,7 +123,10 @@ while True:
             indices = ptd.sort_values()[-TOP_N_TOPIC_DOCS:].index
             # TODO: fix when we support multiple collections
             docs_ids = list(map(lambda doc_id: "pn_%d" % doc_id, indices))
-            response = get_documents_by_ids(docs_ids)
+            response = get_documents_by_ids(docs_ids, with_texts=False)
+    elif message["act"] == "get_document":
+        docs_ids = [message["doc_id"]]
+        response = get_documents_by_ids(docs_ids)[0]
     elif message["act"] == "get_recommendations":
         # TODO: this only works with a single collection of documents (Postnauka) now
         # TODO: make appropriate fixes when we support multiple collections

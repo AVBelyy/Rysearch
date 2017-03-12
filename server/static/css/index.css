@@ -1,97 +1,109 @@
-	body {
-	  padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-	}
-	
-	.polygons {
-		fill: #00ff00;
-		stroke: #000;
-	}
+body {
+    padding-top: 40px; /* 60px to make the container go all the way to the bottom of the topbar */
+}
 
-	.hidden {
-		"display: "none"
-	}
+#knowledge_map_container {
+    position: absolute;
+    top: 50px;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+}
 
-	svg {
-		padding-left: 60px;
-	}
+#document_container {
+    padding-left: 10px;
+}
 
-	.chosen_topic {
-		font-family: 'Anton', sans-serif;
-		font-size: 16px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: normal;
-		line-height: 15.4px;
-	}
+.polygons {
+    fill: #00ff00;
+    stroke: #000;
+}
 
-	.polygons #selected-polygon {
-		fill: #f00;
-	}
+.hidden {
+    display: none;
+}
 
-	.titles {
-		font-family: 'Anton', sans-serif;
-		font-size: 14px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: normal;
-		line-height: 15.4px;
-	}
+svg {
+    padding-left: 60px;
+    display: none;
+}
 
-	.chosen_topics_label {
-		font-size: 250%;
-	}
+.chosen_topic {
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 15.4px;
+}
 
-	.document_title {
-		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-		font-size: 24px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: bold;
-		line-height: 26.4px;
-	}
+.polygons #selected-polygon {
+    fill: #f00;
+}
 
-	.document_text {
-		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-		font-size: 14px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: 400;
-		line-height: 20px;
-	}
+.titles {
+    font-family: 'Anton', sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 15.4px;
+}
 
-	.recommendation_title {
-		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-		font-size: 16px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: bold;
-		line-height: 26.4px;
-	}
+.chosen_topics_label {
+    font-size: 250%;
+}
 
-	.recommendation_text {
-		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-		font-size: 12px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: 400;
-		line-height: 20px;
-	}
+.document_title {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 24px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: bold;
+    line-height: 26.4px;
+}
 
-	h1 {
-		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-		font-size: 24px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: 500;
-		line-height: 26.4px;
-	}
+.document_text {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 400;
+    line-height: 20px;
+}
 
-	p {
-		font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-		font-size: 14px;
-		font-style: normal;
-		font-variant: normal;
-		font-weight: 400;
-		line-height: 20px;
-	}
-	
+.recommendation_title {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: bold;
+    line-height: 26.4px;
+}
+
+.recommendation_text {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 400;
+    line-height: 20px;
+}
+
+h1 {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 24px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 500;
+    line-height: 26.4px;
+}
+
+p {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 400;
+    line-height: 20px;
+}
