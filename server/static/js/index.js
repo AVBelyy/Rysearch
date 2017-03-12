@@ -138,7 +138,7 @@ function initialize_knowledge_map() {
 
         onGroupHold: function(e) {
             if (!e.secondary && e.group.is_last_level && !e.group.groups) {
-                loader.load(e.group);
+                loader.loadDocuments(e.group);
             } else {
                 this.open({ groups: e.group, open: !e.secondary });
             }
