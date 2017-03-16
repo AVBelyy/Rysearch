@@ -12,7 +12,7 @@ var foamtree;
 // the element has been laid out and has non-zero dimensions.
 window.addEventListener("load", function() {
     // Load topic hierarchy.
-    $.ajax({url: "http://localhost:3000/get-topics", success: function(result) {
+    $.ajax({url: "/get-topics", success: function(result) {
         topicsData = result;
         initializeKnowledgeMap();
     }});
@@ -143,7 +143,7 @@ function initializeKnowledgeMap() {
                 if (!group.groups && !group.loading) {
                     spinner.start(group);
 
-                    $.ajax({url: "http://localhost:3000/get-documents?topic_id=" + group.id,
+                    $.ajax({url: "/get-documents?topic_id=" + group.id,
                         success: function(result) {
                             group.groups = [];
                             for (var i in result) {
@@ -167,7 +167,7 @@ function initializeKnowledgeMap() {
                 if (!group.loading) {
                     spinner.start(group);
 
-                    $.ajax({url: "http://localhost:3000/get-document?doc_id=" + group.id,
+                    $.ajax({url: "/get-document?doc_id=" + group.id,
                         success: function(doc) {
                             spinner.stop(group);
                             onclickDocumentCell(doc);
@@ -282,7 +282,7 @@ function onclickDocumentCell(doc) {
     displayMode(MODE_DOCS);
     displayDocument(doc);
     // TODO: rewrite naming with heterogenity
-    $.ajax({url: "http://localhost:3000/get-recommendations?doc_id=" + doc.doc_id.split("_")[1],
+    $.ajax({url: "/get-recommendations?doc_id=" + doc.doc_id.split("_")[1],
             success: function(result) {
                 displayRecommendations(doc, result);
            }});
