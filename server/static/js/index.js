@@ -68,8 +68,11 @@ function initializeKnowledgeMap() {
         for (var topicId in topicsData) {
             var topic = topicsData[topicId];
             if (filterer(topic)) {
+                var tw = topic["top_words"].map(function(s) { return s.replace(/_/g, " "); });
+                var p1 = tw.slice(0, tw.length - 1).join(", ");
+                var p2 = tw[tw.length - 1];
                 response.push({
-                    label: topic["top_words"].join(", "),
+                    label: [p1, p2].join(" и "),
                     id: topicId,
                     isLastLevel: topic["level_id"] == maxLevel,
                     groups: getTopicGroups(topicId)
