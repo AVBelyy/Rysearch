@@ -87,11 +87,13 @@ def get_artm_tid(lid, tid):
     else:
         return "level%d_topic_%d" % (lid, tid)
 
-def get_documents_by_ids(docs_ids, with_texts=True):
+def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
     fields = {"title": 1}
     prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
     if with_texts:
         fields["markdown"] = 1
+    if with_modalities:
+        fields["modalities"] = 1
     queries = {}
     for doc_id in docs_ids:
         prefix = doc_id.split("_", 1)[0]
@@ -114,6 +116,8 @@ def get_documents_by_ids(docs_ids, with_texts=True):
         }
         if with_texts:
             res["markdown"] = doc["markdown"]
+        if with_modalities:
+            res["modalities"] = doc["modalities"]
         response.append(res)
     return response
 
@@ -140,7 +144,8 @@ while True:
             response = get_documents_by_ids(docs_ids, with_texts=False)
     elif message["act"] == "get_document":
         docs_ids = [message["doc_id"]]
-        response = get_documents_by_ids(docs_ids)[0]
+        docs = get_documents_by_ids(docs_ids, with_modalities=True)
+        response = docs[0] if len(docs) > 0 else None
     elif message["act"] == "get_recommendations":
         # TODO: this only works with a single collection of documents (Postnauka) now
         # TODO: make appropriate fixes when we support multiple collections
