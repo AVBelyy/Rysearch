@@ -1,4 +1,4 @@
-import re
+import regex
 import copy
 
 from pymystem3 import Mystem
@@ -92,7 +92,7 @@ class CollectionProcessor(BaseProcessor):
 
 class Splitter(BaseProcessor):
     def __init__(self, token_pattern):
-        self.token_regexp = re.compile(token_pattern)
+        self.token_regexp = regex.compile(token_pattern)
 
     def transform(self, text, *args):
         return self.token_regexp.findall(text)
@@ -210,7 +210,7 @@ class UciBowSink(CollectionProcessor):
         Ws = set()
         for doc in docs:
             for k, vs in doc["modalities"].items():
-                Ws |= set(map(lambda v: (re.sub("\s", "_", v), k), vs))
+                Ws |= set(map(lambda v: (regex.sub("\s", "_", v), k), vs))
         self.Ws = dict(zip(Ws, range(len(Ws))))
         return self
 
@@ -220,7 +220,7 @@ class UciBowSink(CollectionProcessor):
         for docID, doc in enumerate(docs):
             bow = []
             for k, vs in doc["modalities"].items():
-                bow += map(lambda v: self.Ws.get((re.sub("\s", "_", v), k), -1), vs)
+                bow += map(lambda v: self.Ws.get((regex.sub("\s", "_", v), k), -1), vs)
             nnzs += map(lambda p: (docID + 1, p[0] + 1, p[1]), Counter(bow).items())
         docword_header = "%d\n%d\n%d\n" % (d, w, len(nnzs))
         words_list = sorted(self.Ws.items(), key=lambda p: p[1])
@@ -228,6 +228,18 @@ class UciBowSink(CollectionProcessor):
         self.docword_file.write(docword_header + "\n".join(map(lambda v: "%d %d %d" % v, nnzs)))
         self.vocab_file.close()
         self.docword_file.close()
+
+class VowpalWabbitSink(BaseSink):
+    def __init__(self, vw_file, id_func):
+        self.vw_file = vw_file
+        self.id_func = id_func
+
+    def transform(self, docs, *args):
+        for doc in docs:
+            modalities_str = " ".join(map(lambda p: "|%s %s" % (p[0],
+                             " ".join(map(lambda t: "_".join(t.split()), p[1]))), doc["modalities"].items()))
+            self.vw_file.write("%s %s\n" % (self.id_func(doc), modalities_str))
+        self.vw_file.close()
 
 class MongoDbSink(BaseSink):
     def __init__(self, collection_name, id_func=None):
