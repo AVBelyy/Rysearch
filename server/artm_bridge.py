@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pickle
 import json
 import zmq
@@ -39,7 +40,6 @@ unT = lambda t: list(map(int, t[6:].split("_topic_")))
 Ts = [20, 77]
 all_topics = artm_model["theta"].index
 rec_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
-# TODO: index sorting may not be neccessary when we support multiple collections
 rec_theta = artm_model["theta"].T[rec_topics].sort_index()
 
 # Create subject topic names
@@ -89,12 +89,24 @@ def get_artm_tid(lid, tid):
 
 def get_documents_by_ids(docs_ids, with_texts=True):
     fields = {"title": 1}
+    prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
     if with_texts:
         fields["markdown"] = 1
-    result = db.postnauka.find({"_id": {"$in": docs_ids}}, fields)
+    queries = {}
+    for doc_id in docs_ids:
+        prefix = doc_id.split("_", 1)[0]
+        col_name = prefix_to_col_map[prefix]
+        if col_name not in queries:
+            queries[col_name] = []
+        queries[col_name].append(doc_id)
+    result = []
+    for col_name, col_docs_ids in queries.items():
+        result += db[col_name].find({"_id": {"$in": col_docs_ids}}, fields)
     result_map = dict(map(lambda v: (v["_id"], v), result))
     response = []
     for doc_id in docs_ids:
+        if doc_id not in result_map:
+            continue
         doc = result_map[doc_id]
         res = {
             "doc_id":   doc["_id"],
@@ -137,9 +149,10 @@ while True:
             response = "Unknown `doc_id`"
         else:
             dist = pairwise_distances([rec_theta.loc[doc_id]], rec_theta, hellinger_dist)[0]
-            indices = np.argsort(dist)[1:TOP_N_REC_DOCS + 1]
+            dist_series = pd.Series(data=dist, index=rec_theta.index)
+            indices = dist_series.sort_values().index[1:TOP_N_REC_DOCS + 1]
             # TODO: fix when we support multiple collections
-            sim_docs_ids = list(map(lambda doc_id: "pn_%d" % (doc_id + 1), indices))
+            sim_docs_ids = list(map(lambda doc_id: "pn_%d" % doc_id, indices))
             response = get_documents_by_ids(sim_docs_ids)
     else:
         response = "Unknown query"
