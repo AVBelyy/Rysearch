@@ -51,10 +51,11 @@ CMD cd ~ && \
     tmux new-session -s "rysearch" -d && \
     tmux new-window -t "rysearch:1" "mongod -f /etc/mongod.conf" && \
     if [ ! -d rysearch ]; then git clone -b master https://github.com/AVBelyy/Rysearch.git rysearch; fi && \
+    if [ -d shared ]; then ln -s shared/hartm.mdl ~/hartm.mdl; fi && \
+    if [ -d shared ]; then ln -s shared/datasets ~/datasets; fi && \
     cd rysearch/server && \
-    if [ ! -f hartm.mdl ]; then cp ~/hartm.mdl .; fi && \
-    if [ ! -d datasets ];  then cp -r ~/datasets .; fi && \
-    mongorestore -d datasets datasets/ && \
+    ln -s ~/hartm.mdl hartm.mdl && \
+    mongorestore -d datasets ~/datasets && \
     tmux new-window -t "rysearch:2" "python3 artm_bridge.py" && \
     tmux split-window -t "rysearch:2" -v "npm install >/dev/null 2>&1 && npm start" && \
     tmux select-window -t "rysearch:2" && \
