@@ -55,6 +55,6 @@ CMD cd ~ && \
     if [ ! -f hartm.mdl ]; then cp ~/hartm.mdl .; fi && \
     mongorestore -d datasets ~/datasets && \
     tmux new-window -t "rysearch:2" "python3 artm_bridge.py" && \
-    tmux split-window -t "rysearch:2" -v "npm install && npm start" && \
+    tmux split-window -t "rysearch:2" -v "npm install > /dev/null && npm start" && \
     tmux select-window -t "rysearch:2" && \
     tmux attach-session -t "rysearch"
