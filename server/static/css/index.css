@@ -63,6 +63,15 @@ svg {
     line-height: 26.4px;
 }
 
+.document_authors {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: bold;
+    line-height: 22px;
+}
+
 .document_text {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14px;

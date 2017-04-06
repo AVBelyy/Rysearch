@@ -13,6 +13,7 @@ MODEL_PATH = "hartm.mdl"
 ZMQ_PORT = 2411
 
 EDGE_THRESHOLD = 0.05
+DOC_THRESHOLD = 0.25
 TOP_N_WORDS = 3
 TOP_N_REC_DOCS = 5
 TOP_N_TOPIC_DOCS = 10
@@ -69,6 +70,19 @@ for lid, psi in enumerate(psis):
                     topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
     print("Level", lid, "density:", density, "/", psi.shape[0] * psi.shape[1])
 
+# Assign integer weights to topics
+topics_weights = (artm_model["theta"] > DOC_THRESHOLD).sum(axis=1)
+for tid, w in topics_weights.iteritems():
+    # This is due to hARTM bug
+    if tid.startswith("level_0_"):
+        lid = 0
+        tid = tid[8:]
+    else:
+        lid, tid = tid[5:].split("_", 1)
+        lid = int(lid)
+    if tid.startswith("topic_"):
+        topics[T(lid, tid)]["weight"] = int(w)
+
 # Initialize ZeroMQ
 context = zmq.Context()
 socket = context.socket(zmq.REP)
@@ -88,7 +102,7 @@ def get_artm_tid(lid, tid):
         return "level%d_topic_%d" % (lid, tid)
 
 def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
-    fields = {"title": 1}
+    fields = {"title": 1, "authors_names": 1}
     prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
     if with_texts:
         fields["markdown"] = 1
@@ -111,8 +125,9 @@ def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
             continue
         doc = result_map[doc_id]
         res = {
-            "doc_id":   doc["_id"],
-            "title":    doc["title"],
+            "doc_id":        doc["_id"],
+            "title":         doc["title"],
+            "authors_names": doc["authors_names"]
         }
         if with_texts:
             res["markdown"] = doc["markdown"]

@@ -56,13 +56,17 @@ function initializeKnowledgeMap() {
         maxLevel = Math.max(maxLevel, topicsData[topicId]["level_id"]);
     }
 
-    function getTopicGroups(parentName) {
+    function getTopicGroups(levelId, parentName) {
         // TODO: rewrite (O(|T|^2) complexity)
         var filterer;
         if (parentName === undefined) {
-            filterer = function(t) { return t["parents"].length == 0; };
+            filterer = function(t) {
+                return t["level_id"] == levelId && t["parents"].length == 0;
+            };
         } else {
-            filterer = function(t) { return t["parents"].indexOf(parentName) != -1; };
+            filterer = function(t) {
+                return t["level_id"] == levelId && t["parents"].indexOf(parentName) != -1;
+            };
         }
         var response = [];
         for (var topicId in topicsData) {
@@ -75,7 +79,8 @@ function initializeKnowledgeMap() {
                     label: [p1, p2].join(" и "),
                     id: topicId,
                     isLastLevel: topic["level_id"] == maxLevel,
-                    groups: getTopicGroups(topicId)
+                    groups: getTopicGroups(levelId + 1, topicId),
+                    weight: topic["weight"]
                 });
             }
         }
@@ -87,6 +92,8 @@ function initializeKnowledgeMap() {
         parentFillOpacity: 0.9,
         rolloutDuration: 0,
         pullbackDuration: 0,
+
+        relaxationVisible: true,
 
         onGroupHold: function(e) {
             if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
@@ -120,7 +127,7 @@ function initializeKnowledgeMap() {
         },
 
         dataObject: {
-            groups: getTopicGroups()
+            groups: getTopicGroups(0)
         }
     });
 
@@ -167,15 +174,7 @@ function initializeKnowledgeMap() {
             },
 
             showOverview: function(group) {
-                if (!group.loading) {
-                    spinner.start(group);
-
-                    $.ajax({url: "/get-document?doc_id=" + group.id,
-                        success: function(doc) {
-                            spinner.stop(group);
-                            onclickDocumentCell(doc);
-                        }});
-                }
+                onclickDocumentCell(group.id);
             }
         };
     })(foamtree);
@@ -256,7 +255,7 @@ function displayRecommendations(doc, recommendationsData) {
         //.append("li").attr("class", "span10")
         .append("a").attr("class", "thumbnail");
 
-    recommendationBlocks.on("click", onclickDocumentCell);
+    recommendationBlocks.on("click", function(doc) { return onclickDocumentCell(doc.doc_id); });
     recommendationBlocks.append("h6")
         .attr("class", "recommendation_title")
         .text(function(doc) {
@@ -265,28 +264,40 @@ function displayRecommendations(doc, recommendationsData) {
     recommendationBlocks.append("p")
         .attr("class", "recommendation_text")
         .text(function(doc) {
-            return doc.markdown.split(".").slice(0, 1).join(".") + "…";
+            return doc.authors_names.join(", ");
         });
 }
 
 function displayDocument(doc) {
     var documentContainer = d3.select(document.getElementById("document_container"));
     var docText = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
+    var docTags = doc.modalities.flat_tag.map(function(t) { return "<u>" + t + "</u>"; })
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_title")
         .text(doc.title);
+    documentContainer.append("h1")
+        .attr("align", "center")
+        .attr("class", "document_authors")
+        .text(doc.authors_names.join(", "));
+    documentContainer.append("p")
+        .attr("align", "right")
+        .attr("class", "document_tags")
+        .html(docTags.join(", "));
     documentContainer.append("p")
         .attr("class", "document_text")
         .html(docText);
 }
 
-function onclickDocumentCell(doc) {
+function onclickDocumentCell(doc_id) {
     displayMode(MODE_DOCS);
-    displayDocument(doc);
-    // TODO: rewrite naming with heterogenity
-    $.ajax({url: "/get-recommendations?doc_id=" + doc.doc_id.split("_")[1],
-            success: function(result) {
-                displayRecommendations(doc, result);
+    $.ajax({url: "/get-document?doc_id=" + doc_id,
+            success: function(doc) {
+                displayDocument(doc);
+                // TODO: rewrite naming with heterogenity
+                $.ajax({url: "/get-recommendations?doc_id=" + doc.doc_id.split("_")[1],
+                        success: function(result) {
+                            displayRecommendations(doc, result);
+                       }});
            }});
 }
