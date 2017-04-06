@@ -173,7 +173,7 @@ while True:
             indices = dist_series.sort_values().index[1:TOP_N_REC_DOCS + 1]
             # TODO: fix when we support multiple collections
             sim_docs_ids = list(map(lambda doc_id: "pn_%d" % doc_id, indices))
-            response = get_documents_by_ids(sim_docs_ids)
+            response = get_documents_by_ids(sim_docs_ids, with_texts=False)
     else:
         response = "Unknown query"
 
