@@ -102,7 +102,7 @@ def get_artm_tid(lid, tid):
         return "level%d_topic_%d" % (lid, tid)
 
 def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
-    fields = {"title": 1, "authors_names": 1}
+    fields = {"title": 1}
     prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
     if with_texts:
         fields["markdown"] = 1
@@ -127,7 +127,6 @@ def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
         res = {
             "doc_id":        doc["_id"],
             "title":         doc["title"],
-            "authors_names": doc["authors_names"]
         }
         if with_texts:
             res["markdown"] = doc["markdown"]
@@ -163,27 +162,23 @@ while True:
             response = "Incorrect `topic_id`"
         else:
             ptd = artm_model["theta"].loc[artm_tid]
-            indices = ptd.sort_values()[-TOP_N_TOPIC_DOCS:].index
-            # TODO: fix when we support multiple collections
-            docs_ids = list(map(lambda doc_id: "pn_%d" % doc_id, indices))
-            response = get_documents_by_ids(docs_ids, with_texts=False)
+            docs_ids = ptd.sort_values()[-TOP_N_TOPIC_DOCS:].index
+            # TODO: fix when we have authors_names in Habrahabr
+            response = get_documents_by_ids(docs_ids, with_texts=False, with_modalities=True)
     elif message["act"] == "get_document":
         docs_ids = [message["doc_id"]]
         docs = get_documents_by_ids(docs_ids, with_modalities=True)
         response = docs[0] if len(docs) > 0 else None
     elif message["act"] == "get_recommendations":
-        # TODO: this only works with a single collection of documents (Postnauka) now
-        # TODO: make appropriate fixes when we support multiple collections
-        doc_id = int(message["doc_id"])
+        doc_id = message["doc_id"]
         if doc_id not in rec_theta.index:
             response = "Unknown `doc_id`"
         else:
             dist = pairwise_distances([rec_theta.loc[doc_id]], rec_theta, hellinger_dist)[0]
             dist_series = pd.Series(data=dist, index=rec_theta.index)
-            indices = dist_series.sort_values().index[1:TOP_N_REC_DOCS + 1]
-            # TODO: fix when we support multiple collections
-            sim_docs_ids = list(map(lambda doc_id: "pn_%d" % doc_id, indices))
-            response = get_documents_by_ids(sim_docs_ids, with_texts=False)
+            sim_docs_ids = dist_series.sort_values().index[1:TOP_N_REC_DOCS + 1]
+            # TODO: fix when we have authors_names in Habrahabr
+            response = get_documents_by_ids(sim_docs_ids, with_texts=False, with_modalities=True)
     elif message["act"] == "get_topics_distances":
         from scipy.stats import pearsonr
         theta = artm_model["theta"]
