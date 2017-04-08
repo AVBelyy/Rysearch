@@ -13,7 +13,8 @@ var foamtree;
 window.addEventListener("load", function() {
     // Load topic hierarchy.
     $.ajax({url: "/get-topics", success: function(result) {
-        topicsData = result;
+        topicsData = result.topics;
+        topicsDistances = result.distances;
         initializeKnowledgeMap();
     }});
 
@@ -69,6 +70,7 @@ function initializeKnowledgeMap() {
             };
         }
         var response = [];
+        var counter = 1;
         for (var topicId in topicsData) {
             var topic = topicsData[topicId];
             if (filterer(topic)) {
@@ -76,12 +78,13 @@ function initializeKnowledgeMap() {
                 var p1 = tw.slice(0, tw.length - 1).join(", ");
                 var p2 = tw[tw.length - 1];
                 response.push({
-                    label: [p1, p2].join(" и "),
+                    label: counter + ": " +[p1, p2].join(" и "),
                     id: topicId,
                     isLastLevel: topic["level_id"] == maxLevel,
                     groups: getTopicGroups(levelId + 1, topicId),
-                    weight: topic["weight"]
+                    //weight: topic["weight"]
                 });
+                counter++;
             }
         }
         return response.length ? response : undefined;
@@ -94,6 +97,7 @@ function initializeKnowledgeMap() {
         pullbackDuration: 0,
 
         relaxationVisible: true,
+        relaxationInitializer: "ordered",
 
         onGroupHold: function(e) {
             if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
@@ -130,6 +134,8 @@ function initializeKnowledgeMap() {
             groups: getTopicGroups(0)
         }
     });
+
+
 
     // Resize FoamTree on orientation change
     window.addEventListener("orientationchange", foamtree.resize);

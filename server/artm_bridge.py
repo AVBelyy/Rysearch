@@ -145,7 +145,9 @@ while True:
 
     # Process query
     if message["act"] == "get_topics":
-        response = topics
+        response = {}
+        response["distances"] = pairwise_distances(artm_model["theta"], metric='correlation').tolist()
+        response["topics"] = topics
     elif message["act"] == "get_documents":
         lid, tid = unT(message["topic_id"])
         artm_tid = get_artm_tid(lid, tid)
