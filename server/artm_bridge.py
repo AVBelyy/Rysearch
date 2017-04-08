@@ -174,6 +174,10 @@ while True:
             # TODO: fix when we support multiple collections
             sim_docs_ids = list(map(lambda doc_id: "pn_%d" % doc_id, indices))
             response = get_documents_by_ids(sim_docs_ids, with_texts=False)
+    elif message["act"] == "get_topics_distances":
+        from scipy.stats import pearsonr
+        theta = artm_model["theta"]
+        response = pairwise_distances(theta, metric='correlation').tolist()
     else:
         response = "Unknown query"
 
