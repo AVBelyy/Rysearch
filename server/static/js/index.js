@@ -264,7 +264,8 @@ function displayRecommendations(doc, recommendationsData) {
     recommendationBlocks.append("p")
         .attr("class", "recommendation_text")
         .text(function(doc) {
-            return doc.authors_names.join(", ");
+            // TODO: fix when we have authors_names in Habrahabr
+            return doc.modalities.authors.join(", ");
         });
 }
 
@@ -279,7 +280,8 @@ function displayDocument(doc) {
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_authors")
-        .text(doc.authors_names.join(", "));
+        // TODO: fix when we have authors_names in Habrahabr
+        .text(doc.modalities.authors.join(", "));
     documentContainer.append("p")
         .attr("align", "right")
         .attr("class", "document_tags")
@@ -294,8 +296,7 @@ function onclickDocumentCell(doc_id) {
     $.ajax({url: "/get-document?doc_id=" + doc_id,
             success: function(doc) {
                 displayDocument(doc);
-                // TODO: rewrite naming with heterogenity
-                $.ajax({url: "/get-recommendations?doc_id=" + doc.doc_id.split("_")[1],
+                $.ajax({url: "/get-recommendations?doc_id=" + doc.doc_id,
                         success: function(result) {
                             displayRecommendations(doc, result);
                        }});
