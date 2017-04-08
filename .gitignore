@@ -1,4 +1,4 @@
 datasets/
 .ipynb_checkpoints/
 __pycache__/
-*.tmp
+*.DS_Store
