@@ -8,6 +8,8 @@ var topicsData;
 // FoamTree control object.
 var foamtree;
 
+var level_0_order = [5, 13, 11, 15, 9, 18, 17, 1, 10, 16, 4, 0, 3, 14, 12, 7, 2, 8, 6];
+
 // Initialize FoamTree after the whole page loads to make sure
 // the element has been laid out and has non-zero dimensions.
 window.addEventListener("load", function() {
@@ -23,6 +25,15 @@ window.addEventListener("load", function() {
         displayMode(MODE_MAP);
     });
 });
+
+function rearrangeTopics(topics, order) {
+	reordered_topics = []
+	for (var i = 0; i < 19; i++) {
+		reordered_topics.push(topics[order[i]])
+	}
+	//return topics;
+	return reordered_topics;
+}
 
 function displayMode(mode) {
     var mapContainer = document.getElementById("knowledge_map_container"),
@@ -131,7 +142,7 @@ function initializeKnowledgeMap() {
         },
 
         dataObject: {
-            groups: getTopicGroups(0)
+            groups: rearrangeTopics(getTopicGroups(0), level_0_order)
         }
     });
 

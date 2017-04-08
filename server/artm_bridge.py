@@ -146,8 +146,16 @@ while True:
     # Process query
     if message["act"] == "get_topics":
         response = {}
+
+        level_0_topics = list(filter(lambda t: re.match("level_0_topic_*", t), all_topics))
+        level_0_theta = artm_model["theta"].T[level_0_topics].sort_index()
+        level_0_distances = pairwise_distances(level_0_theta.T, metric='correlation').tolist()
         response["distances"] = pairwise_distances(artm_model["theta"], metric='correlation').tolist()
         response["topics"] = topics
+        import pickle
+        with open("../datasets/topics_distances.dump", "wb") as file:
+            pickle.dump(level_0_distances, file);
+
     elif message["act"] == "get_documents":
         lid, tid = unT(message["topic_id"])
         artm_tid = get_artm_tid(lid, tid)
