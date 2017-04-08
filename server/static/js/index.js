@@ -8,7 +8,8 @@ var topicsData;
 // FoamTree control object.
 var foamtree;
 
-var level_0_order = [5, 13, 11, 15, 9, 18, 17, 1, 10, 16, 4, 0, 3, 14, 12, 7, 2, 8, 6];
+// var level_0_order = [5, 13, 11, 15, 9, 18, 17, 1, 10, 16, 4, 0, 3, 14, 12, 7, 2, 8, 6];
+var level_0_order = [5, 13, 11, 2, 8, 4, 0, 3, 16, 10, 1, 17, 18, 9, 14, 12, 7, 6, 15]
 
 // Initialize FoamTree after the whole page loads to make sure
 // the element has been laid out and has non-zero dimensions.
@@ -27,12 +28,19 @@ window.addEventListener("load", function() {
 });
 
 function rearrangeTopics(topics, order) {
-	reordered_topics = []
-	for (var i = 0; i < 19; i++) {
-		reordered_topics.push(topics[order[i]])
+	//recolored_topics = [];
+    /*for (var i = 0; i < 19; i++) {
+		var current_topic = topics[order[i]];
+		current_topic.label = (i+1) + ": " + current_topic.label;
+		reordered_topics.push(current_topic);
+	}*/
+    for (var i = 0; i < topics.length; i++) {
+		var current_topic = topics[order[i]];
+		var intensity = 1 + i / topics.length * 255;
+		current_topic.color = "rgb(" + intensity + "," + intensity + "," + intensity + ")";
+		topics[order[i]] = current_topic;
 	}
-	//return topics;
-	return reordered_topics;
+	return topics;
 }
 
 function displayMode(mode) {
@@ -89,11 +97,11 @@ function initializeKnowledgeMap() {
                 var p1 = tw.slice(0, tw.length - 1).join(", ");
                 var p2 = tw[tw.length - 1];
                 response.push({
-                    label: counter + ": " +[p1, p2].join(" и "),
+                    label: [p1, p2].join(" и "),
                     id: topicId,
                     isLastLevel: topic["level_id"] == maxLevel,
                     groups: getTopicGroups(levelId + 1, topicId),
-                    //weight: topic["weight"]
+                    weight: topic["weight"]
                 });
                 counter++;
             }
@@ -109,6 +117,7 @@ function initializeKnowledgeMap() {
 
         relaxationVisible: true,
         relaxationInitializer: "ordered",
+        layoutByWeightOrder: false,
 
         onGroupHold: function(e) {
             if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
@@ -143,6 +152,11 @@ function initializeKnowledgeMap() {
 
         dataObject: {
             groups: rearrangeTopics(getTopicGroups(0), level_0_order)
+        },
+
+        groupColorDecorator: function(opts, params, vars) {
+    		vars.groupColor = params.group.color;
+        	vars.labelColor = "auto";
         }
     });
 
