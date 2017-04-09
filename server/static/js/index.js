@@ -118,6 +118,7 @@ function initializeKnowledgeMap() {
         relaxationVisible: true,
         relaxationInitializer: "ordered",
         layoutByWeightOrder: false,
+        wireframeLabelDrawing: "always",
 
         onGroupHold: function(e) {
             if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
@@ -186,14 +187,19 @@ function initializeKnowledgeMap() {
 
                     $.ajax({url: "/get-documents?topic_id=" + group.id,
                         success: function(result) {
+                            var docs = result["docs"];
+                            var weights = result["weights"];
+                            group.relaxationInitializer = "fisheye";
                             group.groups = [];
-                            for (var i in result) {
-                                var doc = result[i];
+                            for (var i in docs) {
+                                var doc = docs[i];
+                                var w = weights[doc.doc_id];
                                 var label = doc.title;
                                 group.groups.push({
                                     label: label,
                                     id: doc.doc_id,
-                                    isDoc: true
+                                    isDoc: true,
+                                    weight: w
                                 });
                             }
 

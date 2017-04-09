@@ -164,7 +164,9 @@ while True:
             ptd = artm_model["theta"].loc[artm_tid]
             docs_ids = ptd.sort_values()[-TOP_N_TOPIC_DOCS:].index
             # TODO: fix when we have authors_names in Habrahabr
-            response = get_documents_by_ids(docs_ids, with_texts=False, with_modalities=True)
+            docs = get_documents_by_ids(docs_ids, with_texts=False, with_modalities=True)
+            weights = {d: float(w) for d, w in ptd.items()}
+            response = {"docs": docs, "weights": weights}
     elif message["act"] == "get_document":
         docs_ids = [message["doc_id"]]
         docs = get_documents_by_ids(docs_ids, with_modalities=True)
