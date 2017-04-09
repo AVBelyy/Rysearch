@@ -80,7 +80,7 @@ function initializeKnowledgeMap() {
                     id: topicId,
                     isLastLevel: topic["level_id"] == maxLevel,
                     groups: getTopicGroups(levelId + 1, topicId),
-                    weight: topic["weight"]
+                    //weight: topic["weight"]
                 });
             }
         }
@@ -155,14 +155,18 @@ function initializeKnowledgeMap() {
 
                     $.ajax({url: "/get-documents?topic_id=" + group.id,
                         success: function(result) {
+                            var docs = result.docs;
+                            var weights = result.weights;
                             group.groups = [];
-                            for (var i in result) {
-                                var doc = result[i];
+                            for (var i in docs) {
+                                var doc = docs[i];
+                                var w = weights[doc.doc_id];
                                 var label = doc.title;
                                 group.groups.push({
                                     label: label,
                                     id: doc.doc_id,
-                                    isDoc: true
+                                    isDoc: true,
+                                    weight: w
                                 });
                             }
 

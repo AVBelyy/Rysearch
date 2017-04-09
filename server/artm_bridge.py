@@ -16,7 +16,7 @@ EDGE_THRESHOLD = 0.05
 DOC_THRESHOLD = 0.25
 TOP_N_WORDS = 3
 TOP_N_REC_DOCS = 5
-TOP_N_TOPIC_DOCS = 10
+TOP_N_TOPIC_DOCS = 20
 
 # Initialize MongoDB
 mongo_client = MongoClient()
@@ -82,6 +82,11 @@ for tid, w in topics_weights.iteritems():
         lid = int(lid)
     if tid.startswith("topic_"):
         topics[T(lid, tid)]["weight"] = int(w)
+
+# Initialize doc thresholds
+doc_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
+doc_theta = artm_model["theta"].loc[doc_topics]
+doc_thresholds = doc_theta.max(axis=0) / np.sqrt(2)
 
 # Initialize ZeroMQ
 context = zmq.Context()
@@ -151,10 +156,13 @@ while True:
         if artm_tid is None:
             response = "Incorrect `topic_id`"
         else:
-            ptd = artm_model["theta"].loc[artm_tid]
-            docs_ids = ptd.sort_values()[-TOP_N_TOPIC_DOCS:].index
+            ptd = doc_theta.loc[artm_tid]
+            sorted_ptd = ptd[ptd >= doc_thresholds].sort_values()[-TOP_N_TOPIC_DOCS:][::-1]
+            docs_ids = sorted_ptd.index
             # TODO: fix when we have authors_names in Habrahabr
-            response = get_documents_by_ids(docs_ids, with_texts=False, with_modalities=True)
+            docs = get_documents_by_ids(docs_ids, with_texts=False, with_modalities=True)
+            weights = {k: float(v) for k, v in sorted_ptd.items()}
+            response = {"docs": docs, "weights": weights}
     elif message["act"] == "get_document":
         docs_ids = [message["doc_id"]]
         docs = get_documents_by_ids(docs_ids, with_modalities=True)
