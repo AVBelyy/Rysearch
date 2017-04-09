@@ -101,7 +101,7 @@ function initializeKnowledgeMap() {
                     id: topicId,
                     isLastLevel: topic["level_id"] == maxLevel,
                     groups: getTopicGroups(levelId + 1, topicId),
-                    weight: topic["weight"]
+                    //weight: topic["weight"]
                 });
                 counter++;
             }
@@ -189,7 +189,6 @@ function initializeKnowledgeMap() {
                         success: function(result) {
                             var docs = result["docs"];
                             var weights = result["weights"];
-                            group.relaxationInitializer = "fisheye";
                             group.groups = [];
                             for (var i in docs) {
                                 var doc = docs[i];
