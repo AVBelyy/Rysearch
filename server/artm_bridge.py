@@ -68,7 +68,7 @@ for lid, psi in enumerate(psis):
                     density += 1
                     topics[T(lid, tid1)]["children"].append(T(lid + 1, tid2))
                     topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
-    print("Level", lid, "density:", density, "/", psi.shape[0] * psi.shape[1])
+    #print("Level", lid, "density:", density, "/", psi.shape[0] * psi.shape[1])
 
 # Assign integer weights to topics
 topics_weights = (artm_model["theta"] > DOC_THRESHOLD).sum(axis=1)
@@ -88,6 +88,11 @@ doc_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
 doc_theta = artm_model["theta"].loc[doc_topics]
 doc_thresholds = doc_theta.max(axis=0) / np.sqrt(2)
 
+
+# Load class probabilities for documents
+with open("docs_class_probabilities.dump", "rb") as file:
+    probabilities = pickle.load(file)
+
 # Initialize ZeroMQ
 context = zmq.Context()
 socket = context.socket(zmq.REP)
@@ -106,7 +111,8 @@ def get_artm_tid(lid, tid):
     else:
         return "level%d_topic_%d" % (lid, tid)
 
-def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
+def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False,
+                         with_class_probabilities=True):
     fields = {"title": 1}
     prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
     if with_texts:
@@ -137,6 +143,8 @@ def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
             res["markdown"] = doc["markdown"]
         if with_modalities:
             res["modalities"] = doc["modalities"]
+        if with_class_probabilities:
+            res["class_probabilities"] = dict(zip(["tech", "hum", "natural"] ,probabilities[doc_id]))
         response.append(res)
     return response
 
@@ -150,15 +158,11 @@ while True:
     # Process query
     if message["act"] == "get_topics":
         response = {}
-
         level_0_topics = list(filter(lambda t: re.match("level_0_topic_*", t), all_topics))
         level_0_theta = artm_model["theta"].T[level_0_topics].sort_index()
         level_0_distances = pairwise_distances(level_0_theta.T, metric='correlation').tolist()
         response["distances"] = pairwise_distances(artm_model["theta"], metric='correlation').tolist()
         response["topics"] = topics
-        import pickle
-        with open("../datasets/topics_distances.dump", "wb") as file:
-            pickle.dump(level_0_distances, file);
 
     elif message["act"] == "get_documents":
         lid, tid = unT(message["topic_id"])
@@ -172,7 +176,9 @@ while True:
             # TODO: fix when we have authors_names in Habrahabr
             docs = get_documents_by_ids(docs_ids, with_texts=False, with_modalities=True)
             weights = {d: float(w) for d, w in sorted_ptd.items()}
+            
             response = {"docs": docs, "weights": weights}
+
     elif message["act"] == "get_document":
         docs_ids = [message["doc_id"]]
         docs = get_documents_by_ids(docs_ids, with_modalities=True)

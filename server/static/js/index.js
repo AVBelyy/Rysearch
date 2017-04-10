@@ -323,9 +323,15 @@ function displayDocument(doc) {
         .attr("class", "document_tags")
         .html(docTags.join(", "));
     documentContainer.append("p")
+        .attr("align", "right")
+        .attr("class", "document_class_probabilities")
+        .text("Технический: " + doc.class_probabilities.tech +
+        	  ", Гуманитарный: " + doc.class_probabilities.hum + 
+        	  ", Естесственнонаучный: " + doc.class_probabilities.natural);
+    documentContainer.append("p")
         .attr("class", "document_text")
         .html(docText);
-}
+   }
 
 function onclickDocumentCell(doc_id) {
     displayMode(MODE_DOCS);
