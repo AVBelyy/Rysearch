@@ -80,7 +80,7 @@ function initializeKnowledgeMap() {
                     id: topicId,
                     isLastLevel: topic["level_id"] == maxLevel,
                     groups: getTopicGroups(levelId + 1, topicId),
-                    //weight: topic["weight"]
+                    weight: Math.log(1 + topic["weight"])
                 });
             }
         }

@@ -18,6 +18,63 @@ TOP_N_WORDS = 3
 TOP_N_REC_DOCS = 5
 TOP_N_TOPIC_DOCS = 20
 
+def hellinger_dist(p, q):
+    return norm(np.sqrt(p) - np.sqrt(q))
+
+def from_artm_tid(artm_tid):
+    # This is due to hARTM bug
+    if artm_tid.startswith("level_0_"):
+        return (0, tid[8:])
+    else:
+        lid, tid = artm_tid[5:].split("_", 1)
+        lid = int(lid)
+        return (lid, tid)
+
+def to_artm_tid(lid, tid):
+    if lid < 0 or lid > len(Ts) or tid < 0 or tid >= sum(Ts):
+        return None
+
+    # This is due to hARTM bug
+    if lid == 0:
+        return "level_%d_topic_%d" % (lid, tid)
+    else:
+        return "level%d_topic_%d" % (lid, tid)
+
+def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
+    fields = {"title": 1, "authors_names" : 1}
+    prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
+    if with_texts:
+        fields["markdown"] = 1
+    if with_modalities:
+        fields["modalities"] = 1
+    queries = {}
+    for doc_id in docs_ids:
+        prefix = doc_id.split("_", 1)[0]
+        col_name = prefix_to_col_map[prefix]
+        if col_name not in queries:
+            queries[col_name] = []
+        queries[col_name].append(doc_id)
+    result = []
+    for col_name, col_docs_ids in queries.items():
+        result += db[col_name].find({"_id": {"$in": col_docs_ids}}, fields)
+    result_map = dict(map(lambda v: (v["_id"], v), result))
+    response = []
+    for doc_id in docs_ids:
+        if doc_id not in result_map:
+            continue
+        doc = result_map[doc_id]
+        res = {
+            "doc_id":        doc["_id"],
+            "title":         doc["title"],
+            "authors_names": doc["authors_names"],
+        }
+        if with_texts:
+            res["markdown"] = doc["markdown"]
+        if with_modalities:
+            res["modalities"] = doc["modalities"]
+        response.append(res)
+    return response
+
 # Initialize MongoDB
 mongo_client = MongoClient()
 db = mongo_client["datasets"]
@@ -70,76 +127,28 @@ for lid, psi in enumerate(psis):
                     topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
     print("Level", lid, "density:", density, "/", psi.shape[0] * psi.shape[1])
 
-# Assign integer weights to topics
-topics_weights = (artm_model["theta"] > DOC_THRESHOLD).sum(axis=1)
-for tid, w in topics_weights.iteritems():
-    # This is due to hARTM bug
-    if tid.startswith("level_0_"):
-        lid = 0
-        tid = tid[8:]
-    else:
-        lid, tid = tid[5:].split("_", 1)
-        lid = int(lid)
-    if tid.startswith("topic_"):
-        topics[T(lid, tid)]["weight"] = int(w)
-
 # Initialize doc thresholds
 doc_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
 doc_theta = artm_model["theta"].loc[doc_topics]
 doc_thresholds = doc_theta.max(axis=0) / np.sqrt(2)
 
+# Assign integer weights to topics
+topic_docs_count = doc_theta.apply(lambda s: sum(s >= doc_thresholds), axis=1)
+for artm_tid in doc_topics:
+    topic_id = T(*from_artm_tid(artm_tid))
+    w = int(topic_docs_count[artm_tid])
+    topics[topic_id]["weight"] = w
+for topic_id in topics:
+    if "weight" not in topics[topic_id]:
+        # TODO: fix when we have number of levels > 2
+        topics[topic_id]["weight"] = 0
+        for child_topic_id in topics[topic_id]["children"]:
+            topics[topic_id]["weight"] += topics[child_topic_id]["weight"]
+
 # Initialize ZeroMQ
 context = zmq.Context()
 socket = context.socket(zmq.REP)
 socket.bind("tcp://*:%d" % ZMQ_PORT)
-
-def hellinger_dist(p, q):
-    return norm(np.sqrt(p) - np.sqrt(q))
-
-def get_artm_tid(lid, tid):
-    if lid < 0 or lid > len(Ts) or tid < 0 or tid >= sum(Ts):
-        return None
-
-    # This is due to hARTM bug
-    if lid == 0:
-        return "level_%d_topic_%d" % (lid, tid)
-    else:
-        return "level%d_topic_%d" % (lid, tid)
-
-def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
-    fields = {"title": 1, "authors_names" : 1}
-    prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
-    if with_texts:
-        fields["markdown"] = 1
-    if with_modalities:
-        fields["modalities"] = 1
-    queries = {}
-    for doc_id in docs_ids:
-        prefix = doc_id.split("_", 1)[0]
-        col_name = prefix_to_col_map[prefix]
-        if col_name not in queries:
-            queries[col_name] = []
-        queries[col_name].append(doc_id)
-    result = []
-    for col_name, col_docs_ids in queries.items():
-        result += db[col_name].find({"_id": {"$in": col_docs_ids}}, fields)
-    result_map = dict(map(lambda v: (v["_id"], v), result))
-    response = []
-    for doc_id in docs_ids:
-        if doc_id not in result_map:
-            continue
-        doc = result_map[doc_id]
-        res = {
-            "doc_id":        doc["_id"],
-            "title":         doc["title"],
-            "authors_names": doc["authors_names"],
-        }
-        if with_texts:
-            res["markdown"] = doc["markdown"]
-        if with_modalities:
-            res["modalities"] = doc["modalities"]
-        response.append(res)
-    return response
 
 print("Start serving ZeroMQ queries on port", ZMQ_PORT)
 
@@ -153,7 +162,7 @@ while True:
         response = topics
     elif message["act"] == "get_documents":
         lid, tid = unT(message["topic_id"])
-        artm_tid = get_artm_tid(lid, tid)
+        artm_tid = to_artm_tid(lid, tid)
         if artm_tid is None:
             response = "Incorrect `topic_id`"
         else:
