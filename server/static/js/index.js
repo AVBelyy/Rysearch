@@ -268,8 +268,7 @@ function displayRecommendations(doc, recommendationsData) {
     recommendationBlocks.append("p")
         .attr("class", "recommendation_text")
         .text(function(doc) {
-            // TODO: fix when we have authors_names in Habrahabr
-            return doc.modalities.authors.join(", ");
+            return doc.authors_names.join(", ");
         });
 }
 
@@ -284,8 +283,7 @@ function displayDocument(doc) {
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_authors")
-        // TODO: fix when we have authors_names in Habrahabr
-        .text(doc.modalities.authors.join(", "));
+        .text(doc.authors_names.join(", "));
     documentContainer.append("p")
         .attr("align", "right")
         .attr("class", "document_tags")
