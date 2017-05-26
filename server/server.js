@@ -8,22 +8,32 @@ const uuidV4 = require("uuid/v4");
 // Initialize common data structures
 
 // TODO: think about using TTL (time-to-live) later
-var routing_queue = {};
+var routingQueue = {};
 
 // Initialize zmq
 var sock = zmq.socket("dealer");
 
+function sendToSock (res, msg) {
+    if (typeof msg !== "object" || msg === null) {
+        return false;
+    }
+    var uuid = uuidV4();
+    routingQueue[uuid] = res;
+    msg["id"] = uuid;
+    return sock.send(JSON.stringify(msg)) === 0;
+}
+
 sock.connect("tcp://localhost:2411");
 
-var artm_topics = null;
+var artmTopics = null;
 sock.on("message", function (reply) {
     reply = JSON.parse(reply);
     if (reply.act == "get_topics") {
-        artm_topics = reply.data;
+        artmTopics = reply.data;
     } else if (reply.act == "get_recommendations" || reply.act == "get_documents" ||
                reply.act == "get_document" || reply.act == "transform_doc") {
-        var res = routing_queue[reply.id];
-        delete routing_queue[reply.id];
+        var res = routingQueue[reply.id];
+        delete routingQueue[reply.id];
         res.send(reply.data);
     }
 });
@@ -39,8 +49,8 @@ var UPLOAD_PATH = path.join(__dirname, "uploads/")
 var upload = multer({dest: UPLOAD_PATH})
 
 app.get("/get-topics", function (req, res) {
-    if (artm_topics) {
-        res.send(artm_topics);
+    if (artmTopics) {
+        res.send(artmTopics);
     } else {
         // TODO: error handling
         res.send("error -- data not ready");
@@ -48,36 +58,18 @@ app.get("/get-topics", function (req, res) {
 });
 
 app.get("/get-documents", function (req, res) {
-    var topic_id = req.query.topic_id;
-    var uuid = uuidV4();
-    routing_queue[uuid] = res;
-    sock.send(JSON.stringify({
-        "act": "get_documents",
-        "topic_id": topic_id,
-        "id": uuid,
-    }));
+    var topicId = req.query.topic_id;
+    sendToSock(res, { "act": "get_documents", "topic_id": topicId });
 });
 
 app.get("/get-document", function (req, res) {
-    var doc_id = req.query.doc_id;
-    var uuid = uuidV4();
-    routing_queue[uuid] = res;
-    sock.send(JSON.stringify({
-        "act": "get_document",
-        "doc_id": doc_id,
-        "id": uuid,
-    }));
+    var docId = req.query.doc_id;
+    sendToSock(res, { "act": "get_document", "doc_id": docId });
 });
 
 app.get("/get-recommendations", function (req, res) {
-    var doc_id = req.query.doc_id;
-    var uuid = uuidV4();
-    routing_queue[uuid] = res;
-    sock.send(JSON.stringify({
-        "act": "get_recommendations",
-        "doc_id": doc_id,
-        "id": uuid,
-    }));
+    var docId = req.query.doc_id;
+    sendToSock(res, { "act": "get_recommendations", "doc_id": docId });
 });
 
 app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
@@ -90,13 +82,7 @@ app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
     }
 
     // Make request to ARTM_bridge
-    var uuid = uuidV4();
-    routing_queue[uuid] = res;
-    sock.send(JSON.stringify({
-        "act": "transform_doc",
-        "doc_path": fileObj.path,
-        "id": uuid,
-    }));
+    sendToSock(res, { "act": "transform_doc", "doc_path": fileObj.path });
 });
 
 var server = app.listen(3000, function () {
