@@ -17,9 +17,27 @@ window.addEventListener("load", function() {
         initializeKnowledgeMap();
     }});
 
-    // TODO: temporary switch
-    $(".brand").click(function() {
+    $("#home-btn").click(function() {
         displayMode(MODE_MAP);
+    });
+
+    // TODO: Write proper code
+    $("#fileupload").fileupload({
+        dataType: "json",
+        done: function(e, data) {
+            var theta = data.result.theta;
+            // TODO: write something more useful
+            var pairs = Object.keys(theta).map(function(tid) {
+                return [tid, theta[tid]];
+            }).sort(function(a, b) {
+                return b[1] - a[1];
+            });
+            var top_topics = "";
+            for (var i = 0; i < 3; i++) {
+                top_topics += "<li>" + topicsData[pairs[i][0]]["top_words"].join(", ") + " (" + parseInt(pairs[i][1] * 100) + "%)</li>";
+            }
+            $("#demo-text").html("<b>Топ-3 темы документа:</b><br><ul>" + top_topics + "</ul>");
+        }
     });
 });
 

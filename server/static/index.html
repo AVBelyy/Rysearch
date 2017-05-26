@@ -9,6 +9,8 @@
 
     <!-- External JS libraries -->
     <script src="js/jquery-3.1.1.min.js"></script>
+    <script src="js/jquery.ui.widget.js"></script>
+    <script src="js/jquery.fileupload.js"></script>
     <script src="js/bootstrap.js"></script>
     <script src="js/d3.min.js"></script>
     <script src="js/carrotsearch.foamtree.js"></script>
@@ -17,6 +19,15 @@
     <script type="text/javascript" src="js/index.js"></script>
 </head>
 <body>
+    <!-- File upload input form -->
+    <!--
+    <form name="upload" method="post" enctype="multipart/form-data" action="/transform-doc">
+        <input id="fileupload" name="doc" type="file">
+        <input type="submit" value="Upload file">
+    </form>
+    <div id="demo-text"></div>
+    -->
+
     <!-- Navigation panel markup -->
     <div class="navbar navbar-inverse navbar-fixed-top">
         <div class="navbar-inner">
@@ -27,7 +38,7 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <a class="brand" href="#">Home</a>
+                <a class="brand" id="home-btn" href="#">Home</a>
 
                 <!-- Container for the list of chosen topics -->
                 <div class="nav-collapse collapse">

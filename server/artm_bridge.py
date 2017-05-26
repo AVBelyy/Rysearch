@@ -4,13 +4,24 @@ import pickle
 import json
 import zmq
 import re
+import os
 
 from sklearn.metrics.pairwise import pairwise_distances
 from pymongo import MongoClient
 from scipy.linalg import norm
 
-MODEL_PATH = "hartm.mdl"
-ZMQ_PORT = 2411
+import artm
+from experiments import hierarchy_utils
+
+from parsers import arbitrary, text_utils
+
+MODEL_PATH = "hartm"
+TRANSFORM_PATH = "uploads/transform.txt"
+BATCH_PATH = "uploads/transform_batches/"
+
+ZMQ_BACKEND_PORT = 2511
+
+EMPTY, UP = b"", b"UP"
 
 EDGE_THRESHOLD = 0.05
 DOC_THRESHOLD = 0.25
@@ -24,7 +35,7 @@ def hellinger_dist(p, q):
 def from_artm_tid(artm_tid):
     # This is due to hARTM bug
     if artm_tid.startswith("level_0_"):
-        return (0, tid[8:])
+        return (0, artm_tid[8:])
     else:
         lid, tid = artm_tid[5:].split("_", 1)
         lid = int(lid)
@@ -80,25 +91,30 @@ mongo_client = MongoClient()
 db = mongo_client["datasets"]
 
 # Initialize ARTM data
-artm_model = pickle.load(open(MODEL_PATH, "rb"))
-psis = []
+artm_extra_info = pickle.load(open(MODEL_PATH + "/extra_info.dump", "rb"))
+artm_model = hierarchy_utils.hARTM(theta_columns_naming="title",
+                                   cache_theta=True,
+                                   class_ids=artm_extra_info["class_ids"])
+artm_model.load(MODEL_PATH)
+
+# Extract Phi, Psi and Theta matrices
 phis = []
-for k, v in artm_model.items():
-    if k.startswith("psi_"):
-        psis.append((int(k[4:]), v))
-    if k.startswith("phi_"):
-        phis.append((int(k[4:]), v))
-psis = list(map(lambda p: p[1], sorted(psis)))
-phis = list(map(lambda p: p[1], sorted(phis)))
+psis = []
+theta = artm_extra_info["theta"]
+for level_idx, artm_level in enumerate(artm_model._levels):
+    phis.append(artm_level.get_phi(class_ids="flat_tag"))
+    if level_idx > 0:
+        psis.append(artm_level.get_psi())
+
 topics = {}
 T = lambda lid, tid: "level_%d_%s" % (lid, tid)
 unT = lambda t: list(map(int, t[6:].split("_topic_")))
 
 # Change this constants if model changes
 Ts = [20, 77]
-all_topics = artm_model["theta"].index
+all_topics = theta.index
 rec_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
-rec_theta = artm_model["theta"].T[rec_topics].sort_index()
+rec_theta = theta.T[rec_topics].sort_index()
 
 # Create subject topic names
 for lid, phi in enumerate(phis):
@@ -125,11 +141,10 @@ for lid, psi in enumerate(psis):
                     density += 1
                     topics[T(lid, tid1)]["children"].append(T(lid + 1, tid2))
                     topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
-    print("Level", lid, "density:", density, "/", psi.shape[0] * psi.shape[1])
 
 # Initialize doc thresholds
 doc_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
-doc_theta = artm_model["theta"].loc[doc_topics]
+doc_theta = theta.loc[doc_topics]
 doc_thresholds = doc_theta.max(axis=0) / np.sqrt(2)
 
 # Assign integer weights to topics
@@ -145,19 +160,7 @@ for topic_id in topics:
         for child_topic_id in topics[topic_id]["children"]:
             topics[topic_id]["weight"] += topics[child_topic_id]["weight"]
 
-# Initialize ZeroMQ
-context = zmq.Context()
-socket = context.socket(zmq.REP)
-socket.bind("tcp://*:%d" % ZMQ_PORT)
-
-print("Start serving ZeroMQ queries on port", ZMQ_PORT)
-
-while True:
-    # Wait for next request from client
-    message = json.loads(socket.recv().decode("utf-8"))
-    response = None
-
-    # Process query
+def process_msg(message):
     if message["act"] == "get_topics":
         response = topics
     elif message["act"] == "get_documents":
@@ -167,7 +170,8 @@ while True:
             response = "Incorrect `topic_id`"
         else:
             ptd = doc_theta.loc[artm_tid]
-            sorted_ptd = ptd[ptd >= doc_thresholds].sort_values()[-TOP_N_TOPIC_DOCS:][::-1]
+            sorted_ptd = ptd[ptd >= doc_thresholds].sort_values()
+            sorted_ptd = sorted_ptd[-TOP_N_TOPIC_DOCS:][::-1]
             docs_ids = sorted_ptd.index
             docs = get_documents_by_ids(docs_ids, with_texts=False)
             weights = {k: float(v) for k, v in sorted_ptd.items()}
@@ -181,15 +185,79 @@ while True:
         if doc_id not in rec_theta.index:
             response = "Unknown `doc_id`"
         else:
-            dist = pairwise_distances([rec_theta.loc[doc_id]], rec_theta, hellinger_dist)[0]
+            doc = rec_theta.loc[doc_id]
+            dist = pairwise_distances([doc], rec_theta, hellinger_dist)[0]
             dist_series = pd.Series(data=dist, index=rec_theta.index)
-            sim_docs_ids = dist_series.sort_values().index[1:TOP_N_REC_DOCS + 1]
+            sim_docs_ids = dist_series.sort_values().index
+            sim_docs_ids = sim_docs_ids[1:TOP_N_REC_DOCS + 1]
             response = get_documents_by_ids(sim_docs_ids, with_texts=False)
+    elif message["act"] == "transform_doc":
+        doc_path = message["doc_path"]
+        with open(doc_path) as doc_file:
+            # Parse uploaded file
+            doc = pipeline.fit_transform(doc_file)
+            vw_file = open(TRANSFORM_PATH, "w")
+            # Save to Vowpal Wabbit file
+            text_utils.VowpalWabbitSink(vw_file, lambda x: "upload") \
+                      .fit_transform([doc])
+            # Create batch and transform it into Theta vector
+            # TODO: rewrite using data_format="bow_n_wd"
+            transform_batch = artm.BatchVectorizer(data_format="vowpal_wabbit",
+                                                   data_path=TRANSFORM_PATH,
+                                                   batch_size=1,
+                                                   target_folder=BATCH_PATH)
+            transform_theta = artm_model.transform(transform_batch)
+            # Make a response
+            response = {"theta": {}}
+            for artm_tid, prob in transform_theta["upload"].items():
+                topic_id = T(*from_artm_tid(artm_tid))
+                response["theta"][topic_id] = float(prob)
+        # Delete uploaded file
+        os.remove(doc_path)
     else:
         response = "Unknown query"
 
-    socket.send_string(json.dumps({
-        "act":  message["act"],
-        "id":   message.get("id"),
-        "data": response
-    }))
+    return response
+
+try:
+    # Initialize arbitrary pipeline
+    pipeline = arbitrary.get_pipeline()
+
+    # Initialize ZeroMQ
+    context = zmq.Context()
+    socket = context.socket(zmq.DEALER)
+    # TODO: maybe set socket identity for persistence?
+    socket.connect("tcp://localhost:%d" % ZMQ_BACKEND_PORT)
+
+    # Notify ARTM_proxy that we're up
+    socket.send(UP)
+
+    print("ARTM_bridge: start serving ZeroMQ queries on port",
+          ZMQ_BACKEND_PORT)
+
+    while True:
+        # Wait for next request from client
+        client, request = socket.recv_multipart()
+        message = json.loads(request.decode("utf-8"))
+
+        # Debug logging
+        # print("> " + json.dumps(message))
+
+        # Process message
+        response = process_msg(message)
+
+        socket.send_multipart([
+            client,
+            json.dumps({
+                "act":  message["act"],
+                "id":   message.get("id"),
+                "data": response
+            }).encode("utf-8")
+        ])
+except Exception as e:
+    print(e)
+    print("Shutting down ARTM_bridge...")
+finally:
+    # Clean up
+    socket.close()
+    context.term()

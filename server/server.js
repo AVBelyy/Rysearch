@@ -1,6 +1,9 @@
-var express = require("express");
-var zmq = require("zmq");
-var uuidV4 = require("uuid/v4");
+const path = require("path");
+
+const express = require("express");
+const multer  = require("multer");
+const zmq = require("zmq");
+const uuidV4 = require("uuid/v4");
 
 // Initialize common data structures
 
@@ -8,9 +11,9 @@ var uuidV4 = require("uuid/v4");
 var routing_queue = {};
 
 // Initialize zmq
-var sock = zmq.socket("req");
+var sock = zmq.socket("dealer");
 
-sock.connect("tcp://127.0.0.1:2411");
+sock.connect("tcp://localhost:2411");
 
 var artm_topics = null;
 sock.on("message", function (reply) {
@@ -18,7 +21,7 @@ sock.on("message", function (reply) {
     if (reply.act == "get_topics") {
         artm_topics = reply.data;
     } else if (reply.act == "get_recommendations" || reply.act == "get_documents" ||
-               reply.act == "get_document") {
+               reply.act == "get_document" || reply.act == "transform_doc") {
         var res = routing_queue[reply.id];
         delete routing_queue[reply.id];
         res.send(reply.data);
@@ -28,8 +31,12 @@ sock.on("message", function (reply) {
 sock.send(JSON.stringify({"act": "get_topics"}));
 
 // Initialize express
-var app = express();
+const app = express();
 app.use(express.static("static"));
+
+// TODO: temporary upload path! change later in production
+var UPLOAD_PATH = path.join(__dirname, "uploads/")
+var upload = multer({dest: UPLOAD_PATH})
 
 app.get("/get-topics", function (req, res) {
     if (artm_topics) {
@@ -69,6 +76,25 @@ app.get("/get-recommendations", function (req, res) {
     sock.send(JSON.stringify({
         "act": "get_recommendations",
         "doc_id": doc_id,
+        "id": uuid,
+    }));
+});
+
+app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
+    var fileObj = req.file;
+
+    if (fileObj.mimetype != "text/plain") {
+        errorMsg = "unknown filetype -- " + fileObj.mimetype;
+        res.send(errorMsg);
+        return;
+    }
+
+    // Make request to ARTM_bridge
+    var uuid = uuidV4();
+    routing_queue[uuid] = res;
+    sock.send(JSON.stringify({
+        "act": "transform_doc",
+        "doc_path": fileObj.path,
         "id": uuid,
     }));
 });
