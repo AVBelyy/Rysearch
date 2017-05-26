@@ -1,0 +1,6 @@
+pn_batches/
+hartm/
+test_batches/
+bigartm.*
+dictionary.txt
+*.csv
