@@ -10,26 +10,27 @@ var foamtree;
 
 // Initialize FoamTree after the whole page loads to make sure
 // the element has been laid out and has non-zero dimensions.
-window.addEventListener("load", function() {
+window.addEventListener("load", function () {
     // Load topic hierarchy.
-    $.ajax({url: "/get-topics", success: function(result) {
-        topicsData = result;
-        initializeKnowledgeMap();
-    }});
+    $.get({url: "/get-topics",
+            success: function (result) {
+                topicsData = result;
+                initializeKnowledgeMap();
+            }});
 
-    $("#home-btn").click(function() {
+    $("#home-btn").click(function () {
         displayMode(MODE_MAP);
     });
 
     // TODO: Write proper code
     $("#fileupload").fileupload({
         dataType: "json",
-        done: function(e, data) {
+        done: function (e, data) {
             var theta = data.result.theta;
             // TODO: write something more useful
-            var pairs = Object.keys(theta).map(function(tid) {
+            var pairs = Object.keys(theta).map(function (tid) {
                 return [tid, theta[tid]];
-            }).sort(function(a, b) {
+            }).sort(function (a, b) {
                 return b[1] - a[1];
             });
             var top_topics = "";
@@ -78,11 +79,11 @@ function initializeKnowledgeMap() {
         // TODO: rewrite (O(|T|^2) complexity)
         var filterer;
         if (parentName === undefined) {
-            filterer = function(t) {
+            filterer = function (t) {
                 return t["level_id"] == levelId && t["parents"].length == 0;
             };
         } else {
-            filterer = function(t) {
+            filterer = function (t) {
                 return t["level_id"] == levelId && t["parents"].indexOf(parentName) != -1;
             };
         }
@@ -90,7 +91,7 @@ function initializeKnowledgeMap() {
         for (var topicId in topicsData) {
             var topic = topicsData[topicId];
             if (filterer(topic)) {
-                var tw = topic["top_words"].map(function(s) { return s.replace(/_/g, " "); });
+                var tw = topic["top_words"].map(function (s) { return s.replace(/_/g, " "); });
                 var p1 = tw.slice(0, tw.length - 1).join(", ");
                 var p2 = tw[tw.length - 1];
                 response.push({
@@ -113,7 +114,7 @@ function initializeKnowledgeMap() {
 
         relaxationVisible: true,
 
-        onGroupHold: function(e) {
+        onGroupHold: function (e) {
             if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
                 loader.loadDocuments(e.group);
             } else {
@@ -124,7 +125,7 @@ function initializeKnowledgeMap() {
         // Dynamic loading of groups does not play very well with expose.
         // Therefore, when the user double-clicks a group, initiate data loading
         // if needed and zoom in to the group.
-        onGroupDoubleClick: function(e) {
+        onGroupDoubleClick: function (e) {
             e.preventDefault();
             var group = e.secondary ? e.bottommostOpenGroup : e.topmostClosedGroup;
             var toZoom;
@@ -153,26 +154,27 @@ function initializeKnowledgeMap() {
     window.addEventListener("orientationchange", foamtree.resize);
 
     // Resize on window size changes
-    window.addEventListener("resize", (function() {
+    window.addEventListener("resize", (function () {
       var timeout;
-      return function() {
+      return function () {
         window.clearTimeout(timeout);
         timeout = window.setTimeout(foamtree.resize, 100);
       }
     })());
 
     //
-    // A simple utility for simulating the Ajax loading of data
+    // A simple utility for simulating the AJAX loading of data
     // and updating FoamTree with the newly loaded data.
     //
-    var loader = (function(foamtree) {
+    var loader = (function (foamtree) {
         return {
-            loadDocuments: function(group) {
+            loadDocuments: function (group) {
                 if (!group.groups && !group.loading) {
                     spinner.start(group);
 
-                    $.ajax({url: "/get-documents?topic_id=" + group.id,
-                        success: function(result) {
+                    $.get({url: "/get-documents",
+                        data: { topic_id: group.id },
+                        success: function (result) {
                             var docs = result.docs;
                             var weights = result.weights;
                             group.groups = [];
@@ -188,14 +190,14 @@ function initializeKnowledgeMap() {
                                 });
                             }
 
-                            foamtree.open({ groups: group, open: true }).then(function() {
+                            foamtree.open({ groups: group, open: true }).then(function () {
                                 spinner.stop(group);
                             });
                         }});
                 }
             },
 
-            showOverview: function(group) {
+            showOverview: function (group) {
                 onclickDocumentCell(group.id);
             }
         };
@@ -203,11 +205,11 @@ function initializeKnowledgeMap() {
 
     // A simple utility for starting and stopping spinner animations
     // inside groups to show that some content is loading.
-    var spinner = (function(foamtree) {
+    var spinner = (function (foamtree) {
         // Set up a groupContentDecorator that draws the loading spinner
         foamtree.set("wireframeContentDecorationDrawing", "always");
         foamtree.set("groupContentDecoratorTriggering", "onSurfaceDirty");
-        foamtree.set("groupContentDecorator", function(opts, props, vars) {
+        foamtree.set("groupContentDecorator", function (opts, props, vars) {
             var group = props.group;
             if (!group.loading) {
                 return;
@@ -251,7 +253,7 @@ function initializeKnowledgeMap() {
         });
 
         return {
-            start: function(group) {
+            start: function (group) {
                 group.loading = true;
                 group.loadingStartTime = Date.now();
 
@@ -259,7 +261,7 @@ function initializeKnowledgeMap() {
                 foamtree.redraw(true, group);
             },
 
-            stop: function(group) {
+            stop: function (group) {
                 group.loading = false;
             }
         };
@@ -277,15 +279,15 @@ function displayRecommendations(doc, recommendationsData) {
         //.append("li").attr("class", "span10")
         .append("a").attr("class", "thumbnail");
 
-    recommendationBlocks.on("click", function(doc) { return onclickDocumentCell(doc.doc_id); });
+    recommendationBlocks.on("click", function (doc) { return onclickDocumentCell(doc.doc_id); });
     recommendationBlocks.append("h6")
         .attr("class", "recommendation_title")
-        .text(function(doc) {
+        .text(function (doc) {
             return doc.title;
         });
     recommendationBlocks.append("p")
         .attr("class", "recommendation_text")
-        .text(function(doc) {
+        .text(function (doc) {
             return doc.authors_names.join(", ");
         });
 }
@@ -293,7 +295,7 @@ function displayRecommendations(doc, recommendationsData) {
 function displayDocument(doc) {
     var documentContainer = d3.select(document.getElementById("document_container"));
     var docText = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
-    var docTags = doc.modalities.flat_tag.map(function(t) { return "<u>" + t + "</u>"; })
+    var docTags = doc.modalities.flat_tag.map(function (t) { return "<u>" + t + "</u>"; })
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_title")
@@ -313,11 +315,13 @@ function displayDocument(doc) {
 
 function onclickDocumentCell(doc_id) {
     displayMode(MODE_DOCS);
-    $.ajax({url: "/get-document?doc_id=" + doc_id,
-            success: function(doc) {
+    $.get({url: "/get-document",
+            data: { doc_id: doc_id },
+            success: function (doc) {
                 displayDocument(doc);
-                $.ajax({url: "/get-recommendations?doc_id=" + doc.doc_id,
-                        success: function(result) {
+                $.get({url: "/get-recommendations",
+                        data: { doc_id: doc.doc_id },
+                        success: function (result) {
                             displayRecommendations(doc, result);
                        }});
            }});
