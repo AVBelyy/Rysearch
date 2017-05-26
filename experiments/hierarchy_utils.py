@@ -407,11 +407,10 @@ class hARTM(object):
                                    num_topics=1,
                                    seed=self._get_seed(level_idx),
                                    **self._common_models_args)
-            filename = sorted_model_filenames[2 * level_idx]
-            print("->", filename)
-            model.load(filename, "n_wt")
             filename = sorted_model_filenames[2 * level_idx + 1]
             model.load(filename, "p_wt")
+            filename = sorted_model_filenames[2 * level_idx]
+            model.load(filename, "n_wt")
             config = model.master._config
             config.opt_for_avx = False
             model.master._lib.ArtmReconfigureMasterModel(
