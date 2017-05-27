@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import random
 import pickle
 import json
 import zmq
@@ -9,6 +10,7 @@ import os
 from sklearn.metrics.pairwise import pairwise_distances
 from pymongo import MongoClient
 from scipy.linalg import norm
+from datetime import datetime
 
 import artm
 from experiments import hierarchy_utils
@@ -28,6 +30,9 @@ DOC_THRESHOLD = 0.25
 TOP_N_WORDS = 3
 TOP_N_REC_DOCS = 5
 TOP_N_TOPIC_DOCS = 20
+
+# List of all doc_id prefixes
+prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
 
 def hellinger_dist(p, q):
     return norm(np.sqrt(p) - np.sqrt(q))
@@ -53,7 +58,6 @@ def to_artm_tid(lid, tid):
 
 def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
     fields = {"title": 1, "authors_names" : 1}
-    prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
     if with_texts:
         fields["markdown"] = 1
     if with_modalities:
@@ -67,7 +71,8 @@ def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
         queries[col_name].append(doc_id)
     result = []
     for col_name, col_docs_ids in queries.items():
-        result += db[col_name].find({"_id": {"$in": col_docs_ids}}, fields)
+        dataset = db["datasets"][col_name]
+        result += dataset.find({"_id": {"$in": col_docs_ids}}, fields)
     result_map = dict(map(lambda v: (v["_id"], v), result))
     response = []
     for doc_id in docs_ids:
@@ -87,8 +92,7 @@ def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
     return response
 
 # Initialize MongoDB
-mongo_client = MongoClient()
-db = mongo_client["datasets"]
+db = MongoClient()
 
 # Initialize ARTM data
 artm_extra_info = pickle.load(open(MODEL_PATH + "/extra_info.dump", "rb"))
@@ -214,6 +218,45 @@ def process_msg(message):
                 response["theta"][topic_id] = float(prob)
         # Delete uploaded file
         os.remove(doc_path)
+    elif message["act"] == "get_next_assessment":
+        ass_id = message["assessor_id"]
+        ass_cnt = message["assessors_cnt"]
+        col_name = message["collection_name"]
+
+        if ass_id >= ass_cnt:
+            response = "Incorrent `assessor_id`"
+        else:
+            docs_count = db["datasets"][col_name].count()
+            min_id = int(ass_id * docs_count / ass_cnt)
+            max_id = int((ass_id + 1) * docs_count / ass_cnt)
+            # May take a long time for large datasets
+            docs_ids = db["datasets"][col_name].find({}, {"_id": 1})
+            docs_ids = list(map(lambda x: x["_id"],
+                                docs_ids.sort([("_id", 1)])))
+            ass_docs_ids = docs_ids[min_id:max_id]
+            # Get unused documents' ids
+            used_docs_ids = db["assessment"][col_name].find({}, {"_id": 1})
+            used_docs_ids = list(map(lambda x: x["_id"], used_docs_ids))
+            unused_docs_ids = list(set(ass_docs_ids) - set(used_docs_ids))
+            # Form response
+            random.shuffle(unused_docs_ids)
+            response = unused_docs_ids
+    elif message["act"] == "assess_document":
+        doc_id = message["doc_id"]
+        is_relevant = message["is_relevant"]
+        col_names = [v for k, v in prefix_to_col_map.items()
+                     if doc_id.startswith(k + "_")]
+        if len(col_names) != 1:
+            response = False
+        else:
+            col_name = col_names[0]
+            dataset = db["assessment"][col_name]
+            doc = {
+                "is_relevant": is_relevant,
+                "assess_time": datetime.now()
+            }
+            dataset.replace_one({"_id": doc_id}, doc, upsert=True)
+            response = True
     else:
         response = "Unknown query"
 
