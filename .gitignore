@@ -4,3 +4,4 @@ __pycache__/
 venv/
 result
 *.DS_Store
+nohup.out
