@@ -240,7 +240,8 @@ def process_msg(message):
             unused_docs_ids = list(set(ass_docs_ids) - set(used_docs_ids))
             # Form response
             random.shuffle(unused_docs_ids)
-            response = unused_docs_ids
+            # Use batches of 100 docs per request
+            response = unused_docs_ids[:100]
     elif message["act"] == "assess_document":
         doc_id = message["doc_id"]
         is_relevant = message["is_relevant"]

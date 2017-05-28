@@ -359,13 +359,23 @@ function onclickAssessorMode() {
         success: function (docsIds) {
             assess = {};
             assess["ids"] = docsIds;
+            assess["zero_docs_flag"] = docsIds.length == 0;
             showNextAssessment();
         }});
 }
 
 function showNextAssessment() {
-    if (!assess || assess["ids"].length == 0) {
+    if (!assess) {
         alert("Нет документов для разметки");
+        return;
+    }
+    if (assess["ids"].length == 0) {
+        if (assess["zero_docs_flag"]) {
+            alert("Все документы этой коллекции уже размечены");
+        } else {
+            // Получим очередную порцию документов
+            onclickAssessorMode();
+        }
         return;
     }
 
