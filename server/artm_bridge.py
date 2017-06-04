@@ -195,25 +195,26 @@ def process_msg(message):
     elif message["act"] == "get_document":
         doc_id = message["doc_id"]
         docs = get_documents_by_ids([doc_id], with_modalities=True)
-        # Display tag recommendations
         if len(docs) > 0:
             doc = docs[0]
-            own_tags = set(doc["modalities"]["flat_tag"])
-            ptd = rec_theta.loc[doc_id]
-            topics_ids = list(map(lambda tid: from_artm_tid(tid)[1],
-                                  ptd.index))
-            weighted_tags = phis[rec_lid][topics_ids].mul(ptd.values)
-            rec_tags = {}
-            for _, pwt in weighted_tags.iteritems():
-                top_tags = pwt.nlargest(len(own_tags) + TOP_N_REC_TAGS)
-                for tag, w in top_tags.iteritems():
-                    tag = regex.sub("_", " ", tag)
-                    if tag not in own_tags:
-                        rec_tags[tag] = max(rec_tags.get(tag, 0), w)
-            rec_tags = list(map(lambda p: (p[1], p[0]), rec_tags.items()))
-            rec_tags.sort(reverse=True)
-            rec_tags = list(map(lambda x: x[1], rec_tags[:TOP_N_REC_TAGS]))
-            doc["recommended_tags"] = rec_tags
+            if message["recommend_tags"]:
+                # Tag recommendations
+                own_tags = set(doc["modalities"]["flat_tag"])
+                ptd = rec_theta.loc[doc_id]
+                topics_ids = list(map(lambda tid: from_artm_tid(tid)[1],
+                                      ptd.index))
+                weighted_tags = phis[rec_lid][topics_ids].mul(ptd.values)
+                rec_tags = {}
+                for _, pwt in weighted_tags.iteritems():
+                    top_tags = pwt.nlargest(len(own_tags) + TOP_N_REC_TAGS)
+                    for tag, w in top_tags.iteritems():
+                        tag = regex.sub("_", " ", tag)
+                        if tag not in own_tags:
+                            rec_tags[tag] = max(rec_tags.get(tag, 0), w)
+                rec_tags = list(map(lambda p: (p[1], p[0]), rec_tags.items()))
+                rec_tags.sort(reverse=True)
+                rec_tags = list(map(lambda x: x[1], rec_tags[:TOP_N_REC_TAGS]))
+                doc["recommended_tags"] = rec_tags
             response = doc
         else:
             response = None

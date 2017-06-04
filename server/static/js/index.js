@@ -341,7 +341,7 @@ function displayDocument(doc) {
 function onclickDocumentCell(doc_id) {
     displayMode(MODE_DOCS);
     $.get({url: "/get-document",
-            data: { doc_id: doc_id },
+            data: { doc_id: doc_id, recommend_tags: true },
             success: function (doc) {
                 displayDocument(doc);
                 $.get({url: "/recommend-docs",

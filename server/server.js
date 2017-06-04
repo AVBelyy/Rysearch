@@ -67,7 +67,8 @@ app.get("/get-documents", function (req, res) {
 
 app.get("/get-document", function (req, res) {
     var docId = req.query.doc_id;
-    sendToSock(res, { "act": "get_document", "doc_id": docId });
+    var recommTags = req.query.recommend_tags;
+    sendToSock(res, { "act": "get_document", "doc_id": docId, "recommend_tags": !!recommTags });
 });
 
 app.get("/recommend-docs", function (req, res) {
