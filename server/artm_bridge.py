@@ -16,6 +16,7 @@ from experiments import hierarchy_utils
 from parsers import arbitrary, text_utils
 
 MODEL_PATH = "hartm"
+THETA_MODEL_PATH = "hartm.mdl"
 TRANSFORM_PATH = "uploads/transform.txt"
 BATCH_PATH = "uploads/transform_batches/"
 
@@ -101,6 +102,7 @@ artm_model.load(MODEL_PATH)
 phis = []
 psis = []
 theta = artm_extra_info["theta"]
+# theta = pickle.load(open(THETA_MODEL_PATH, "rb"))["theta"]
 for level_idx, artm_level in enumerate(artm_model._levels):
     phis.append(artm_level.get_phi(class_ids="flat_tag"))
     if level_idx > 0:
@@ -118,7 +120,7 @@ rec_theta = theta.T[rec_topics].sort_index()
 
 # Create subject topic names
 for lid, phi in enumerate(phis):
-    names = phi.index[phi.values.argsort(axis=0)[-TOP_N_WORDS:][::-1].T]
+    names = phi.index[phi.values.argsort(axis=0)[-2 * TOP_N_WORDS:][::-1].T]
     for tid, top_words in zip(phi.columns, names):
         # subject topic names are "topic_X", where X = 0, 1, ...
         # background topic names are "background_X", where X = 0, 1, ...
@@ -128,6 +130,7 @@ for lid, phi in enumerate(phis):
                 "top_words": list(top_words),
                 "parents":   [],
                 "children":  [],
+                "weight":    0,
             }
 
 # Collect topic edges
@@ -141,6 +144,13 @@ for lid, psi in enumerate(psis):
                     density += 1
                     topics[T(lid, tid1)]["children"].append(T(lid + 1, tid2))
                     topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
+
+# Assign top words to child topics
+for topic_id, topic in topics.items():
+    used_top_words = sum(map(lambda tid: topics[tid]["top_words"][:TOP_N_WORDS],
+                             topic["parents"]), [])
+    topic["top_words"] = list(filter(lambda tw: tw not in used_top_words,
+                                     topic["top_words"]))[:TOP_N_WORDS]
 
 # Initialize doc thresholds
 doc_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
@@ -255,7 +265,8 @@ try:
             }).encode("utf-8")
         ])
 except Exception as e:
-    print(e)
+    import traceback
+    traceback.print_exc()
     print("Shutting down ARTM_bridge...")
 finally:
     # Clean up
