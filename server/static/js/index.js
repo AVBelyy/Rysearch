@@ -1,8 +1,9 @@
 //  Constants for displayMode function:
 var currentMode;
-MODE_MAP = 0,      // Display map only.
-MODE_DOCS = 1;     // Display documents and recommendations.
-MODE_ASSESS = 2;   // Display documents and assessor controls.
+MODE_MAP = 0,        // Display map only.
+MODE_DOCS = 1;       // Display documents and recommendations.
+MODE_ASSESS = 2;     // Display documents and assessor controls.
+MODE_TRANSFORM = 3;  // Display upload form and document info.
 
 //  The dictionary with the information about topics.
 var topicsData;
@@ -29,6 +30,10 @@ window.addEventListener("load", function () {
 
     $("#assess-btn").click(onclickAssessorMode);
 
+    $("#transform-btn").click(function () {
+        displayMode(MODE_TRANSFORM);
+    });
+
     // TODO: Write proper code
     $("#fileupload").fileupload({
         dataType: "json",
@@ -42,7 +47,13 @@ window.addEventListener("load", function () {
             });
             var top_topics = "";
             for (var i = 0; i < 3; i++) {
-                top_topics += "<li>" + topicsData[pairs[i][0]]["top_words"].join(", ") + " (" + parseInt(pairs[i][1] * 100) + "%)</li>";
+                var topicName;
+                if (pairs[i][0] in topicsData) {
+                    topicName = topicsData[pairs[i][0]]["top_words"].join(", ");
+                } else {
+                    topicName = "<b>мусорная тема</b>";
+                }
+                top_topics += "<li>" + topicName + " (" + parseInt(pairs[i][1] * 100) + "%)</li>";
             }
             $("#demo-text").html("<b>Топ-3 темы документа:</b><br><ul>" + top_topics + "</ul>");
         }
@@ -53,7 +64,8 @@ function displayMode(mode) {
     var mapContainer = document.getElementById("knowledge_map_container"),
         overviewContainer = document.getElementById("overview_container"),
         documentContainer = d3.select(document.getElementById("document_container")),
-        recommendationsContainer = d3.select(document.getElementById("recommendations_container"));
+        recommendationsContainer = d3.select(document.getElementById("recommendations_container")),
+        transformContainer = document.getElementById("transform_container");
 
     recommendationsContainer.selectAll("ul").remove();
     documentContainer.selectAll("h1").remove();
@@ -65,17 +77,24 @@ function displayMode(mode) {
         case MODE_MAP:
             mapContainer.style.display = "inherit";
             overviewContainer.style.display = "none";
+            transformContainer.style.display = "none";
             foamtree.zoom(foamtree.get("dataObject"));
             break;
         case MODE_DOCS:
             mapContainer.style.display = "none";
             overviewContainer.style.display = "inherit";
+            transformContainer.style.display = "none";
             break;
         case MODE_ASSESS:
             mapContainer.style.display = "none";
             overviewContainer.style.display = "inherit";
+            transformContainer.style.display = "none";
             handleAssessKeys();
             break;
+        case MODE_TRANSFORM:
+            mapContainer.style.display = "none";
+            overviewContainer.style.display = "none";
+            transformContainer.style.display = "block";
     }
 
     currentMode = mode;

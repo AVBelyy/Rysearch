@@ -19,14 +19,6 @@
     <script type="text/javascript" src="js/index.js"></script>
 </head>
 <body>
-    <!-- File upload input form -->
-    <!--
-    <form name="upload" method="post" enctype="multipart/form-data" action="/transform-doc">
-        <input id="fileupload" name="doc" type="file">
-        <input type="submit" value="Upload file">
-    </form>
-    <div id="demo-text"></div>
-    -->
 
     <!-- Navigation panel markup -->
     <div class="navbar navbar-inverse navbar-fixed-top">
@@ -40,6 +32,7 @@
                 </button>
                 <a class="brand" id="home-btn" href="#">Explore</a>
                 <a class="brand" id="assess-btn" href="#">Assess</a>
+                <a class="brand" id="transform-btn" href="#">Classify<sup>β</sup></a>
 
                 <!-- Container for the list of chosen topics -->
                 <div class="nav-collapse collapse">
@@ -57,6 +50,14 @@
             <div id="overview_container" class="row-fluid">
                 <div class="span8" id="document_container"></div>
                 <div class="span4" id="recommendations_container"></div>
+            </div>
+            <div id="transform_container" class="row-fluid" style="display: none">
+                <!-- File upload input form -->
+                <form name="upload" method="post" enctype="multipart/form-data" action="/transform-doc">
+                    <input id="fileupload" name="doc" type="file">
+                    <input type="submit" value="Upload file">
+                </form>
+                <div id="demo-text"></div>
             </div>
         </div>
 
