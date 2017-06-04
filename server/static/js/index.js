@@ -91,16 +91,20 @@ function initializeKnowledgeMap() {
         for (var topicId in topicsData) {
             var topic = topicsData[topicId];
             if (filterer(topic)) {
-                var tw = topic["top_words"].map(function (s) { return s.replace(/_/g, " "); });
-                var p1 = tw.slice(0, tw.length - 1).join(", ");
-                var p2 = tw[tw.length - 1];
-                response.push({
-                    label: [p1, p2].join(" и "),
-                    id: topicId,
-                    isLastLevel: topic["level_id"] == maxLevel,
-                    groups: getTopicGroups(levelId + 1, topicId),
-                    weight: Math.log(1 + topic["weight"])
-                });
+                // Topic weight corresponds to number of topic's articles
+                // We do not want empty topics on the map
+                if (topic["weight"] > 0 || levelId == 0) {
+                    var tw = topic["top_words"].map(function (s) { return s.replace(/_/g, " "); });
+                    var p1 = tw.slice(0, tw.length - 1).join(", ");
+                    var p2 = tw[tw.length - 1];
+                    response.push({
+                        label: [p1, p2].join(" и "),
+                        id: topicId,
+                        isLastLevel: topic["level_id"] == maxLevel,
+                        groups: getTopicGroups(levelId + 1, topicId),
+                        weight: Math.log(1 + topic["weight"])
+                    });
+                }
             }
         }
         return response.length ? response : undefined;
@@ -296,6 +300,7 @@ function displayDocument(doc) {
     var documentContainer = d3.select(document.getElementById("document_container"));
     var docText = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
     var docTags = doc.modalities.flat_tag.map(function (t) { return "<u>" + t + "</u>"; })
+    var recommTags = doc.recommended_tags.map(function (t) { return "<u>" + t + "</u>"; })
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_title")
@@ -309,6 +314,10 @@ function displayDocument(doc) {
         .attr("class", "document_tags")
         .html(docTags.join(", "));
     documentContainer.append("p")
+        .attr("align", "right")
+        .attr("class", "document_tags")
+        .html(recommTags.join(", "));
+    documentContainer.append("p")
         .attr("class", "document_text")
         .html(docText);
 }
@@ -319,7 +328,7 @@ function onclickDocumentCell(doc_id) {
             data: { doc_id: doc_id },
             success: function (doc) {
                 displayDocument(doc);
-                $.get({url: "/get-recommendations",
+                $.get({url: "/recommend-docs",
                         data: { doc_id: doc.doc_id },
                         success: function (result) {
                             displayRecommendations(doc, result);
