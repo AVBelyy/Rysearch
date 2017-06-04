@@ -316,7 +316,6 @@ function displayDocument(doc) {
     var documentContainer = d3.select(document.getElementById("document_container"));
     var docText = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
     var docTags = doc.modalities.flat_tag.map(function (t) { return "<u>" + t + "</u>"; })
-    var recommTags = doc.recommended_tags.map(function (t) { return "<u>" + t + "</u>"; })
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_title")
@@ -329,10 +328,13 @@ function displayDocument(doc) {
         .attr("align", "right")
         .attr("class", "document_tags")
         .html(docTags.join(", "));
-    documentContainer.append("p")
-        .attr("align", "right")
-        .attr("class", "document_tags")
-        .html(recommTags.join(", "));
+    if (doc.recommended_tags) {
+        var recommTags = doc.recommended_tags.map(function (t) { return "<u>" + t + "</u>"; })
+        documentContainer.append("p")
+            .attr("align", "right")
+            .attr("class", "document_tags")
+            .html(recommTags.join(", "));
+    }
     documentContainer.append("p")
         .attr("class", "document_text")
         .html(docText);
