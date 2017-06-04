@@ -1,12 +1,17 @@
 //  Constants for displayMode function:
+var currentMode;
 MODE_MAP = 0,      // Display map only.
 MODE_DOCS = 1;     // Display documents and recommendations.
+MODE_ASSESS = 2;   // Display documents and assessor controls.
 
 //  The dictionary with the information about topics.
 var topicsData;
 
 // FoamTree control object.
 var foamtree;
+
+// Current assessor-mode state.
+var assess;
 
 // Initialize FoamTree after the whole page loads to make sure
 // the element has been laid out and has non-zero dimensions.
@@ -21,6 +26,8 @@ window.addEventListener("load", function () {
     $("#home-btn").click(function () {
         displayMode(MODE_MAP);
     });
+
+    $("#assess-btn").click(onclickAssessorMode);
 
     // TODO: Write proper code
     $("#fileupload").fileupload({
@@ -52,6 +59,8 @@ function displayMode(mode) {
     documentContainer.selectAll("h1").remove();
     documentContainer.selectAll("p").remove();
 
+    $(document).unbind("keyup");
+
     switch (mode) {
         case MODE_MAP:
             mapContainer.style.display = "inherit";
@@ -62,7 +71,14 @@ function displayMode(mode) {
             mapContainer.style.display = "none";
             overviewContainer.style.display = "inherit";
             break;
+        case MODE_ASSESS:
+            mapContainer.style.display = "none";
+            overviewContainer.style.display = "inherit";
+            handleAssessKeys();
+            break;
     }
+
+    currentMode = mode;
 }
 
 /*  Function that starts initialization of knowledge map and other elements of interface. */
@@ -336,4 +352,123 @@ function onclickDocumentCell(doc_id) {
                             displayRecommendations(doc, result);
                        }});
            }});
+}
+
+function onclickAssessorMode() {
+    var assessorId = 0;   // TODO: set from URL hash-part
+    var assessorsCnt = 1; // TODO: set from URL hash-part
+    var collectionName = "habrahabr";
+
+    displayMode(MODE_ASSESS);
+
+    $.get({url: "/get-next-assessment",
+        data: {
+            assessor_id: assessorId,
+            assessors_cnt: assessorsCnt,
+            collection_name: collectionName
+        },
+        success: function (docsIds) {
+            assess = {};
+            assess["ids"] = docsIds;
+            assess["zero_docs_flag"] = docsIds.length == 0;
+            showNextAssessment();
+        }});
+}
+
+function showNextAssessment() {
+    if (!assess) {
+        alert("Нет документов для разметки");
+        return;
+    }
+    if (assess["ids"].length == 0) {
+        if (assess["zero_docs_flag"]) {
+            alert("Все документы этой коллекции уже размечены");
+        } else {
+            // Получим очередную порцию документов
+            onclickAssessorMode();
+        }
+        return;
+    }
+
+    var nextDocId = assess["ids"][assess["ids"].length - 1];
+
+    // Очистим холст
+    displayMode(MODE_ASSESS);
+
+    $.get({url: "/get-document",
+        data: { doc_id: nextDocId },
+        success: function (doc) {
+            // Display document
+            displayDocument(doc);
+
+            // Display controls
+            var recommendationsContainer = d3.select(document.getElementById("recommendations_container"));
+
+            var recommendationBlocks = recommendationsContainer.append("ul")
+                .attr("class", "thumbnails");
+
+            recommendationBlocks.append("a").attr("class", "thumbnail").append("h6")
+                .on("click", onclickAssessRelevant)
+                .attr("class", "recommendation_title")
+                .text("Документ релевантен (Ctrl + Right)");
+
+            recommendationBlocks.append("a").attr("class", "thumbnail").append("h6")
+                .on("click", onclickAssessIrrelevant)
+                .attr("class", "recommendation_title")
+                .text("Документ не релевантен (Ctrl + Left)");
+
+            recommendationBlocks.append("a").attr("class", "thumbnail").append("h6")
+                .on("click", onclickAssessSkip)
+                .attr("class", "recommendation_title")
+                .text("Пропустить документ (Ctrl + Space)");
+        }});
+}
+
+function handleAssessKeys() {
+    $(document).keyup(function (e) {
+        if (e.keyCode == 37 && e.ctrlKey) {
+            onclickAssessIrrelevant();
+        } else if (e.keyCode == 39 && e.ctrlKey) {
+            onclickAssessRelevant();
+        } else if (e.keyCode == 32 && e.ctrlKey) {
+            onclickAssessSkip();
+        }
+    });
+}
+
+function onclickAssessRelevant() {
+    if (!assess || assess["ids"].length == 0) {
+        return;
+    }
+
+    var nextDocId = assess["ids"][assess["ids"].length - 1];
+    $.post({url: "/assess-document",
+        data: { doc_id: nextDocId, is_relevant: true }
+    });
+
+    assess["ids"].pop();
+    showNextAssessment();
+}
+
+function onclickAssessIrrelevant() {
+    if (!assess || assess["ids"].length == 0) {
+        return;
+    }
+
+    var nextDocId = assess["ids"][assess["ids"].length - 1];
+    $.post({url: "/assess-document",
+        data: { doc_id: nextDocId, is_relevant: false }
+    });
+
+    assess["ids"].pop();
+    showNextAssessment();
+}
+
+function onclickAssessSkip() {
+    if (!assess || assess["ids"].length == 0) {
+        return;
+    }
+
+    assess["ids"].pop();
+    showNextAssessment();
 }
