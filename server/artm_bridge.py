@@ -4,7 +4,7 @@ import random
 import pickle
 import json
 import zmq
-import re
+import regex
 import os
 
 from sklearn.metrics.pairwise import pairwise_distances
@@ -18,6 +18,7 @@ from experiments import hierarchy_utils
 from parsers import arbitrary, text_utils
 
 MODEL_PATH = "hartm"
+THETA_MODEL_PATH = "hartm.mdl"
 TRANSFORM_PATH = "uploads/transform.txt"
 BATCH_PATH = "uploads/transform_batches/"
 
@@ -29,6 +30,7 @@ EDGE_THRESHOLD = 0.05
 DOC_THRESHOLD = 0.25
 TOP_N_WORDS = 3
 TOP_N_REC_DOCS = 5
+TOP_N_REC_TAGS = 5
 TOP_N_TOPIC_DOCS = 20
 
 # List of all doc_id prefixes
@@ -105,6 +107,7 @@ artm_model.load(MODEL_PATH)
 phis = []
 psis = []
 theta = artm_extra_info["theta"]
+# theta = pickle.load(open(THETA_MODEL_PATH, "rb"))["theta"]
 for level_idx, artm_level in enumerate(artm_model._levels):
     phis.append(artm_level.get_phi(class_ids="flat_tag"))
     if level_idx > 0:
@@ -117,21 +120,23 @@ unT = lambda t: list(map(int, t[6:].split("_topic_")))
 # Change this constants if model changes
 Ts = [20, 77]
 all_topics = theta.index
-rec_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
+rec_lid = 0
+rec_topics = list(filter(lambda t: regex.match("level_0_topic_*", t), all_topics))
 rec_theta = theta.T[rec_topics].sort_index()
 
 # Create subject topic names
 for lid, phi in enumerate(phis):
-    names = phi.index[phi.values.argsort(axis=0)[-TOP_N_WORDS:][::-1].T]
+    names = phi.index[phi.values.argsort(axis=0)[-2 * TOP_N_WORDS:][::-1].T]
     for tid, top_words in zip(phi.columns, names):
         # subject topic names are "topic_X", where X = 0, 1, ...
         # background topic names are "background_X", where X = 0, 1, ...
-        if re.match("^topic_\d+$", tid):
+        if regex.match("^topic_\d+$", tid):
             topics[T(lid, tid)] = {
                 "level_id":  lid,
                 "top_words": list(top_words),
                 "parents":   [],
                 "children":  [],
+                "weight":    0,
             }
 
 # Collect topic edges
@@ -139,15 +144,22 @@ for lid, psi in enumerate(psis):
     density = 0
     psi = psi > EDGE_THRESHOLD
     for tid1 in psi.columns:
-        if re.match("^topic_\d+$", tid1):
+        if regex.match("^topic_\d+$", tid1):
             for tid2 in psi.index:
-                if re.match("^topic_\d+$", tid2) and psi.loc[tid2, tid1]:
+                if regex.match("^topic_\d+$", tid2) and psi.loc[tid2, tid1]:
                     density += 1
                     topics[T(lid, tid1)]["children"].append(T(lid + 1, tid2))
                     topics[T(lid + 1, tid2)]["parents"].append(T(lid, tid1))
 
+# Assign top words to child topics
+for topic_id, topic in topics.items():
+    used_top_words = sum(map(lambda tid: topics[tid]["top_words"][:TOP_N_WORDS],
+                             topic["parents"]), [])
+    topic["top_words"] = list(filter(lambda tw: tw not in used_top_words,
+                                     topic["top_words"]))[:TOP_N_WORDS]
+
 # Initialize doc thresholds
-doc_topics = list(filter(lambda t: re.match("level1_topic_*", t), all_topics))
+doc_topics = list(filter(lambda t: regex.match("level1_topic_*", t), all_topics))
 doc_theta = theta.loc[doc_topics]
 doc_thresholds = doc_theta.max(axis=0) / np.sqrt(2)
 
@@ -181,10 +193,31 @@ def process_msg(message):
             weights = {k: float(v) for k, v in sorted_ptd.items()}
             response = {"docs": docs, "weights": weights}
     elif message["act"] == "get_document":
-        docs_ids = [message["doc_id"]]
-        docs = get_documents_by_ids(docs_ids, with_modalities=True)
-        response = docs[0] if len(docs) > 0 else None
-    elif message["act"] == "get_recommendations":
+        doc_id = message["doc_id"]
+        docs = get_documents_by_ids([doc_id], with_modalities=True)
+        # Display tag recommendations
+        if len(docs) > 0:
+            doc = docs[0]
+            own_tags = set(doc["modalities"]["flat_tag"])
+            ptd = rec_theta.loc[doc_id]
+            topics_ids = list(map(lambda tid: from_artm_tid(tid)[1],
+                                  ptd.index))
+            weighted_tags = phis[rec_lid][topics_ids].mul(ptd.values)
+            rec_tags = {}
+            for _, pwt in weighted_tags.iteritems():
+                top_tags = pwt.nlargest(len(own_tags) + TOP_N_REC_TAGS)
+                for tag, w in top_tags.iteritems():
+                    tag = regex.sub("_", " ", tag)
+                    if tag not in own_tags:
+                        rec_tags[tag] = max(rec_tags.get(tag, 0), w)
+            rec_tags = list(map(lambda p: (p[1], p[0]), rec_tags.items()))
+            rec_tags.sort(reverse=True)
+            rec_tags = list(map(lambda x: x[1], rec_tags[:TOP_N_REC_TAGS]))
+            doc["recommended_tags"] = rec_tags
+            response = doc
+        else:
+            response = None
+    elif message["act"] == "recommend_docs":
         doc_id = message["doc_id"]
         if doc_id not in rec_theta.index:
             response = "Unknown `doc_id`"
@@ -299,7 +332,8 @@ try:
             }).encode("utf-8")
         ])
 except Exception as e:
-    print(e)
+    import traceback
+    traceback.print_exc()
     print("Shutting down ARTM_bridge...")
 finally:
     # Clean up

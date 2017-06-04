@@ -31,7 +31,7 @@ sock.on("message", function (reply) {
     reply = JSON.parse(reply);
     if (reply.act == "get_topics") {
         artmTopics = reply.data;
-    } else if (reply.act == "get_recommendations" || reply.act == "get_documents" ||
+    } else if (reply.act == "recommend_docs" || reply.act == "get_documents" ||
                reply.act == "get_document" || reply.act == "transform_doc" ||
                reply.act == "get_next_assessment" || reply.act == "assess_document") {
         var res = routingQueue[reply.id];
@@ -70,9 +70,9 @@ app.get("/get-document", function (req, res) {
     sendToSock(res, { "act": "get_document", "doc_id": docId });
 });
 
-app.get("/get-recommendations", function (req, res) {
+app.get("/recommend-docs", function (req, res) {
     var docId = req.query.doc_id;
-    sendToSock(res, { "act": "get_recommendations", "doc_id": docId });
+    sendToSock(res, { "act": "recommend_docs", "doc_id": docId });
 });
 
 app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
