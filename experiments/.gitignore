@@ -1,5 +1,6 @@
 pn_batches/
 hartm/
+transform_batches/
 test_batches/
 bigartm.*
 dictionary.txt

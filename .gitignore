@@ -5,3 +5,4 @@ venv/
 result
 *.DS_Store
 nohup.out
+*.dump
