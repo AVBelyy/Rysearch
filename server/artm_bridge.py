@@ -85,7 +85,7 @@ def get_documents_by_ids(docs_ids, with_texts=True, with_modalities=False):
         res = {
             "doc_id":        doc["_id"],
             "title":         doc["title"],
-            "authors_names": doc["authors_names"],
+            "authors_names": doc.get("authors_names", [])
         }
         if with_texts:
             res["markdown"] = doc["markdown"]
