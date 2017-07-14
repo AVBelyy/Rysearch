@@ -34,7 +34,8 @@ TOP_N_REC_TAGS = 5
 TOP_N_TOPIC_DOCS = 20
 
 # List of all doc_id prefixes
-prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr"}
+prefix_to_col_map = {"pn": "postnauka", "habr": "habrahabr",
+                     "elem": "elementy"}
 
 def hellinger_dist(p, q):
     return norm(np.sqrt(p) - np.sqrt(q))
