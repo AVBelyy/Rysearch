@@ -114,6 +114,26 @@ for level_idx, artm_level in enumerate(artm_model._levels):
     if level_idx > 0:
         psis.append(artm_level.get_psi())
 
+if "spectrum" not in artm_extra_info.keys():
+    from spectrum import arrange_topics
+    
+    phi0_topic_titles = list(filter(lambda x: x.startswith("topic"), phis[0].columns))
+    phi1_topic_titles = list(filter(lambda x: x.startswith("topic"), phis[1].columns))
+    
+    new_phi0_topic_order = np.array(phi0_topic_titles)[arrange_topics(phis[0][phi0_topic_titles].values)]
+    new_phi1_topic_order = np.array(phi1_topic_titles)[arrange_topics(phis[1][phi1_topic_titles].values)]
+
+    level_0_topics_ids = list(map(lambda tid: "level_0_%s" % tid, new_phi0_topic_order))
+    level_1_topics_ids = list(map(lambda tid: "level_1_%s" % tid, new_phi1_topic_order))
+    
+    artm_extra_info["spectrum"] = [level_0_topics_ids, level_1_topics_ids]
+    
+    pickle.dump(artm_extra_info, open(MODEL_PATH + "/extra_info.dump", "wb"))
+    print("spectrum updated")
+else: 
+    print("spectrum ok")
+
+
 topics = {}
 T = lambda lid, tid: "level_%d_%s" % (lid, tid)
 unT = lambda t: list(map(int, t[6:].split("_topic_")))
