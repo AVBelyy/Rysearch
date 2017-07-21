@@ -1,0 +1,23 @@
+{
+    "name": "rysearch",
+    "homepage": "https://github.com/AVBelyy/Rysearch",
+    "authors": [
+        "Anton Belyy <anton.belyy@gmail.com>"
+    ],
+    "description": "An exploratoRY SEARCH engine",
+    "dependencies": {
+        "d3": ">=4.10.0",
+        "bootstrap": ">=3.3.7",
+        "bootstrap-fileinput": ">=4.4.2"
+    },
+    "main": "",
+    "license": "MIT",
+    "private": true,
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "test",
+        "tests"
+    ]
+}

@@ -1,6 +1,6 @@
 //  Constants for displayMode function:
 var currentMode;
-MODE_MAP = 0,        // Display map only.
+MODE_MAP = 0;        // Display map only.
 MODE_DOCS = 1;       // Display documents and recommendations.
 MODE_ASSESS = 2;     // Display documents and assessor controls.
 MODE_TRANSFORM = 3;  // Display upload form and document info.
@@ -16,13 +16,13 @@ var assess;
 
 // Initialize FoamTree after the whole page loads to make sure
 // the element has been laid out and has non-zero dimensions.
-window.addEventListener("load", function () {
+$(document).ready(function () {
     // Load topic hierarchy.
     $.get({url: "/get-topics",
-            success: function (result) {
-                topicsData = result;
-                initializeKnowledgeMap();
-            }});
+        success: function (result) {
+            topicsData = result;
+            initializeKnowledgeMap();
+        }});
 
     $("#home-btn").click(function () {
         displayMode(MODE_MAP);
@@ -35,28 +35,18 @@ window.addEventListener("load", function () {
     });
 
     // TODO: Write proper code
-    $("#fileupload").fileupload({
-        dataType: "json",
-        done: function (e, data) {
-            var theta = data.result.theta;
-            // TODO: write something more useful
-            var pairs = Object.keys(theta).map(function (tid) {
-                return [tid, theta[tid]];
-            }).sort(function (a, b) {
-                return b[1] - a[1];
-            });
-            var top_topics = "";
-            for (var i = 0; i < 3; i++) {
-                var topicName;
-                if (pairs[i][0] in topicsData) {
-                    topicName = topicsData[pairs[i][0]]["top_words"].join(", ");
-                } else {
-                    topicName = "<b>мусорная тема</b>";
-                }
-                top_topics += "<li>" + topicName + " (" + parseInt(pairs[i][1] * 100) + "%)</li>";
-            }
-            $("#demo-text").html("<b>Топ-3 темы документа:</b><br><ul>" + top_topics + "</ul>");
-        }
+    $("#upload").fileinput({
+        uploadUrl: "/transform-doc",
+        showPreview: false,
+        maxFileCount: 1,
+        autoReplace: true,
+        previewFileType: "text",
+        allowedFileExtensions: ["txt", "md"]
+    }).on("fileuploaded", function(e, data, previewId, index) {
+        var theta = data.response.theta;
+        var filename = data.filenames[0];
+        $("#upload_container").hide();
+        initializeDocSunburst(theta, filename);
     });
 });
 
@@ -194,11 +184,11 @@ function initializeKnowledgeMap() {
 
     // Resize on window size changes
     window.addEventListener("resize", (function () {
-      var timeout;
-      return function () {
-        window.clearTimeout(timeout);
-        timeout = window.setTimeout(foamtree.resize, 100);
-      }
+        var timeout;
+        return function () {
+            window.clearTimeout(timeout);
+            timeout = window.setTimeout(foamtree.resize, 100);
+        }
     })());
 
     //
@@ -309,13 +299,64 @@ function initializeKnowledgeMap() {
     displayMode(MODE_MAP);
 }
 
+function initializeDocSunburst(theta, filename) {
+    /*
+    // We respin until the visualization container has non-zero area (there are race
+    // conditions on Chrome which permit that) and the visualization class is loaded.
+    var container = document.getElementById("visualization");
+    if (container.clientWidth <= 0 || container.clientHeight <= 0 || !window["CarrotSearchCircles"]) {
+    window.setTimeout(embed, 250);
+    return;
+}
+    */
+
+    // Prepare theta vector.
+    var pairs = Object.keys(theta).map(function (tid) {
+        return [tid, theta[tid]];
+    }).sort(function (a, b) {
+        return b[1] - a[1];
+    });
+    var groups = [];
+    for (var i = 0; i < pairs.length; i++) {
+        var topicId = pairs[i][0], topicWeight = pairs[i][1];
+        if (topicId in topicsData && topicId.startsWith("level_0")) {
+            topicName = topicsData[topicId]["top_words"].join(", ");
+            groups.push({label: topicName, weight: topicWeight});
+        }
+    }
+
+    // Use the defaults for all parameters.
+    var circles = new CarrotSearchCircles({
+        id: "doc_sunburst_container",
+        captureMouseEvents: false,
+        pixelRatio: Math.min(1.5, window.devicePixelRatio || 1),
+        dataObject: {
+            groups: groups
+        }
+    });
+
+    circles.set({
+        titleBar: "inscribed",
+        //diameter: "60%",
+        titleBarTextColor: "#000",
+        rainbowStartColor: "#2E8B57",
+        rainbowEndColor: "#98FB98",
+        titleBarLabelDecorator: function (attrs) {
+            attrs.label = filename;
+        }
+    });
+
+    // TODO: install resize hook later
+    //installResizeHandlerFor(circles, 0);
+}
+
 function displayRecommendations(doc, recommendationsData) {
     var recommendationsContainer = d3.select(document.getElementById("recommendations_container"));
 
     var recommendationBlocks = recommendationsContainer.append("ul")
         .attr("class", "thumbnails")
         .selectAll("li").data(recommendationsData).enter()
-        //.append("li").attr("class", "span10")
+    //.append("li").attr("class", "span10")
         .append("a").attr("class", "thumbnail");
 
     recommendationBlocks.on("click", function (doc) { return onclickDocumentCell(doc.doc_id); });
@@ -362,15 +403,15 @@ function displayDocument(doc) {
 function onclickDocumentCell(doc_id) {
     displayMode(MODE_DOCS);
     $.get({url: "/get-document",
-            data: { doc_id: doc_id, recommend_tags: true },
-            success: function (doc) {
-                displayDocument(doc);
-                $.get({url: "/recommend-docs",
-                        data: { doc_id: doc.doc_id },
-                        success: function (result) {
-                            displayRecommendations(doc, result);
-                       }});
-           }});
+        data: { doc_id: doc_id, recommend_tags: true },
+        success: function (doc) {
+            displayDocument(doc);
+            $.get({url: "/recommend-docs",
+                data: { doc_id: doc.doc_id },
+                success: function (result) {
+                    displayRecommendations(doc, result);
+                }});
+        }});
 }
 
 function onclickAssessorMode() {
