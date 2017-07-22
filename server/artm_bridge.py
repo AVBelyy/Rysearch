@@ -20,7 +20,7 @@ MODEL_PATH = "hartm"
 
 ZMQ_BACKEND_PORT = 2511
 
-EMPTY, UP = b"", b"UP"
+EMPTY, UP, DOWN = b"", b"UP", b"DOWN"
 
 
 class BridgeParamError(ValueError):
@@ -185,6 +185,8 @@ except:
     traceback.print_exc()
     print("Shutting down ARTM_bridge...")
 finally:
+    # Unregister
+    socket.send(DOWN)
     # Clean up
     rm_flat_dir(artm_log_path)
     socket.close()

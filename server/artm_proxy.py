@@ -28,20 +28,24 @@ try:
           ZMQ_FRONTEND_PORT, "and", ZMQ_BACKEND_PORT)
 
     # Main loop
+    # TODO: remove stale workers by time-out
     while True:
         sockets = dict(poller.poll())
+        prev_len = len(available_workers)
 
         if backend in sockets:
             response = backend.recv_multipart()
             worker, client = response[:2]
-            if not available_workers:
-                # Poll for clients now that a worker is available
-                poller.register(frontend, zmq.POLLIN)
-            available_workers.append(worker)
-            if client != b"UP" and len(response) > 2:
+            if client == b"UP":
+                available_workers.append(worker)
+            elif client == b"DOWN":
+                if worker in available_workers:
+                    available_workers.remove(worker)
+            elif len(response) > 2:
                 # If worker replied, send rest back to client
                 reply = response[2]
                 frontend.send_multipart([client, reply])
+                available_workers.append(worker)
 
         if frontend in sockets:
             # Get next client request, route to last-used worker
@@ -49,11 +53,16 @@ try:
             client, request = frontend.recv_multipart()
             worker = available_workers.pop(0)
             backend.send_multipart([worker, client, request])
-            if not available_workers:
-                # Don't poll clients if no workers are available
-                poller.unregister(frontend)
-except Exception as e:
-    print(e)
+
+        if len(available_workers) > 0 and prev_len == 0:
+            # Poll for clients now that a worker is available
+            poller.register(frontend, zmq.POLLIN)
+        if len(available_workers) == 0:
+            # Don't poll clients if no workers are available
+            poller.unregister(frontend)
+except:
+    import traceback
+    traceback.print_exc()
     print("Shutting down ARTM_proxy...")
 finally:
     # Clean up
