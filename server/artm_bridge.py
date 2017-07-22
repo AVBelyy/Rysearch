@@ -5,6 +5,8 @@ import pickle
 import json
 import zmq
 import regex
+import tempfile
+import glob
 import os
 
 from parsers import arbitrary, text_utils
@@ -15,64 +17,73 @@ import artm_lib
 
 
 MODEL_PATH = "hartm"
-TRANSFORM_PATH = "uploads/transform.txt"
-BATCH_PATH = "uploads/transform_batches/"
 
 ZMQ_BACKEND_PORT = 2511
 
 EMPTY, UP = b"", b"UP"
 
 
-# Initialize ARTM bridge
-artm_bridge = artm_lib.ArtmBridge(MODEL_PATH)
+class BridgeParamError(ValueError):
+    def __init__(self, message):
+        self.message = message
+
+
+def rm_flat_dir(dir_path):
+    for file_path in glob.glob(os.path.join(dir_path, "*")):
+        os.remove(file_path)
+    os.rmdir(dir_path)
 
 def process_msg(message):
     if message["act"] == "get_topics":
         response = artm_bridge.model.topics
     elif message["act"] == "get_documents":
         topic_id = message["topic_id"]
+        if type(topic_id) is not str:
+            raise BridgeParamError("incorrect param type: `topic_id`")
         docs, weights = artm_bridge.get_documents_by_topic(topic_id, limit=20)
         response = {"docs": docs, "weights": weights}
     elif message["act"] == "get_document":
         doc_id = message["doc_id"]
+        if type(doc_id) is not str:
+            raise BridgeParamError("incorrect param type: `doc_id`")
         docs = artm_bridge.data_source.get_documents_by_ids([doc_id], with_modalities=True)
-        if len(docs) > 0:
-            doc = docs[0]
-            if message["recommend_tags"]:
-                doc["recommended_tags"] = artm_bridge.recommend_tags_by_doc(doc)
-            response = doc
-        else:
-            response = None
+        if len(docs) == 0:
+            raise BridgeParamError("document with `doc_id` = '%s' is not found" % doc_id)
+        doc = docs[0]
+        if message["recommend_tags"]:
+            doc["recommended_tags"] = artm_bridge.recommend_tags_by_doc(doc)
+        response = doc
     elif message["act"] == "recommend_docs":
         doc_id = message["doc_id"]
+        if type(doc_id) is not str:
+            raise BridgeParamError("incorrect param type: `doc_id`")
         sim_docs_ids = artm_bridge.recommend_docs_by_doc(doc_id)
         response = artm_bridge.data_source.get_documents_by_ids(sim_docs_ids, with_texts=False)
     elif message["act"] == "transform_doc":
         doc_path = message["doc_path"]
-        with open(doc_path) as doc_file:
+        try:
+            # Initialize file resources
+            doc_file = open(doc_path)
+            vw_fd, vw_path = tempfile.mkstemp(prefix="upload", text=True)
+            vw_file = os.fdopen(vw_fd, "w")
+            batch_path = tempfile.mkdtemp(prefix="batch")
             # Parse uploaded file
             doc = pipeline.fit_transform(doc_file)
-            vw_file = open(TRANSFORM_PATH, "w")
             # Save to Vowpal Wabbit file
             text_utils.VowpalWabbitSink(vw_file, lambda x: "upload") \
                       .fit_transform([doc])
-            # Create batch and transform it into Theta vector
-            # TODO: rewrite using data_format="bow_n_wd"
-            transform_batch = artm.BatchVectorizer(data_format="vowpal_wabbit",
-                                                   data_path=TRANSFORM_PATH,
-                                                   batch_size=1,
-                                                   target_folder=BATCH_PATH)
-            transform_theta = artm_bridge.model.transform(transform_batch)
-            # Make a response
-            response = {"theta": {}}
-            for artm_tid, pdt in transform_theta["upload"].items():
-                try:
-                    topic_id = artm_bridge.model.from_artm_tid(artm_tid)
-                    response["theta"][topic_id] = float(pdt)
-                except Exception as e:
-                    pass
-        # Delete uploaded file
-        os.remove(doc_path)
+            # Transform uploaded document and return its Theta matrix
+            response = {}
+            response["theta"] = artm_bridge.model.transform_one(vw_path, batch_path)
+        except:
+            raise
+        finally:
+            # Delete uploaded file
+            doc_file.close()
+            os.remove(doc_path)
+            # Delete temporary files/dirs
+            os.remove(vw_path)
+            rm_flat_dir(batch_path)
     elif False and message["act"] == "get_next_assessment":
         ass_id = message["assessor_id"]
         ass_cnt = message["assessors_cnt"]
@@ -114,7 +125,7 @@ def process_msg(message):
             dataset.replace_one({"_id": doc_id}, doc, upsert=True)
             response = True
     else:
-        response = "Unknown query"
+        raise BridgeParamError("unknown query")
 
     return response
 
@@ -122,17 +133,21 @@ try:
     # Initialize arbitrary pipeline
     pipeline = arbitrary.get_pipeline()
 
-    # Initialize BigARTM
-    lib = artm.wrapper.LibArtm()
+    # Initialize BigARTM logging
+    artm_log_path = tempfile.mkdtemp(prefix="artmlog")
     lc = artm.messages.ConfigureLoggingArgs()
-    lc.minloglevel = 4
-    lib.ArtmConfigureLogging(lc)
+    lc.log_dir = artm_log_path
+    lc.minloglevel = 2
+    artm.wrapper.LibArtm(logging_config=lc)
 
     # Initialize ZeroMQ
     context = zmq.Context()
     socket = context.socket(zmq.DEALER)
     # TODO: maybe set socket identity for persistence?
     socket.connect("tcp://localhost:%d" % ZMQ_BACKEND_PORT)
+
+    # Initialize ARTM bridge
+    artm_bridge = artm_lib.ArtmBridge(MODEL_PATH)
 
     # Notify ARTM_proxy that we're up
     socket.send(UP)
@@ -149,7 +164,13 @@ try:
         # print("> " + json.dumps(message))
 
         # Process message
-        response = process_msg(message)
+        response = {}
+        try:
+            response["ok"] = process_msg(message)
+        except BridgeParamError as e:
+            response["error"] = {"message": e.message}
+        except Exception as e:
+            response["error"] = {"message": "server error"}
 
         socket.send_multipart([
             client,
@@ -159,11 +180,12 @@ try:
                 "data": response
             }).encode("utf-8")
         ])
-except Exception as e:
+except:
     import traceback
     traceback.print_exc()
     print("Shutting down ARTM_bridge...")
 finally:
     # Clean up
+    rm_flat_dir(artm_log_path)
     socket.close()
     context.term()

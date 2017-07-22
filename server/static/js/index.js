@@ -20,7 +20,7 @@ $(document).ready(function () {
     // Load topic hierarchy.
     $.get({url: "/get-topics",
         success: function (result) {
-            topicsData = result;
+            topicsData = result.ok;
             initializeKnowledgeMap();
         }});
 
@@ -43,10 +43,15 @@ $(document).ready(function () {
         previewFileType: "text",
         allowedFileExtensions: ["txt", "md"]
     }).on("fileuploaded", function(e, data, previewId, index) {
-        var theta = data.response.theta;
-        var filename = data.filenames[0];
-        $("#upload_container").hide();
-        initializeDocSunburst(theta, filename);
+        if (data.response.ok) {
+            var theta = data.response.ok.theta;
+            var filename = data.filenames[0];
+            $("#upload_container").hide();
+            initializeDocSunburst(theta, filename);
+        } else {
+            // Error handling
+            alert("Error: " + data.response.error.message);
+        }
     });
 });
 
@@ -222,8 +227,8 @@ function initializeKnowledgeMap() {
                     $.get({url: "/get-documents",
                         data: { topic_id: group.id },
                         success: function (result) {
-                            var docs = result.docs;
-                            var weights = result.weights;
+                            var docs = result.ok.docs;
+                            var weights = result.ok.weights;
                             group.groups = [];
                             for (var i in docs) {
                                 var doc = docs[i];
@@ -443,12 +448,14 @@ function onclickDocumentCell(doc_id) {
     displayMode(MODE_DOCS);
     $.get({url: "/get-document",
         data: { doc_id: doc_id, recommend_tags: true },
-        success: function (doc) {
+        success: function (result) {
+            var doc = result.ok;
             displayDocument(doc);
             $.get({url: "/recommend-docs",
                 data: { doc_id: doc.doc_id },
                 success: function (result) {
-                    displayRecommendations(doc, result);
+                    var recommendations = result.ok;
+                    displayRecommendations(doc, recommendations);
                 }});
         }});
 }

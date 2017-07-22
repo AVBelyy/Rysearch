@@ -9,6 +9,8 @@ from pymongo import MongoClient
 from scipy.linalg import norm
 from sklearn.metrics.pairwise import pairwise_distances
 
+import artm
+
 
 # List of all doc_id prefixes
 # TODO: move to config file
@@ -144,8 +146,18 @@ class ArtmModel:
         sorted_ptd = ptd[ptd >= self._doc_thresholds].sort_values(ascending=False)
         return sorted_ptd
 
-    def transform(self, artm_batch):
-        return self._model.transform(artm_batch)
+    def transform_one(self, vw_path, batch_path):
+        transform_batch = artm.BatchVectorizer(data_format="vowpal_wabbit",
+                                               data_path=vw_path,
+                                               batch_size=1,
+                                               target_folder=batch_path)
+        transform_theta = self._model.transform(transform_batch)
+        response = {}
+        for artm_tid, pdt in transform_theta["upload"].items():
+            if artm_tid in self._from_artm_tid_map:
+                topic_id = self._from_artm_tid_map[artm_tid]
+                response[topic_id] = float(pdt)
+        return response
 
     @property
     def theta(self):
@@ -174,9 +186,6 @@ class ArtmModel:
 
     def from_topic_id(self, topic_id):
         return self._to_lid_tid_map[topic_id]
-
-    def from_artm_tid(self, artm_tid):
-        return self._from_artm_tid_map[artm_tid]
 
 
 class ArtmDataSource:

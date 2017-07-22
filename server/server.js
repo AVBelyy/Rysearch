@@ -55,8 +55,7 @@ app.get("/get-topics", function (req, res) {
     if (artmTopics) {
         res.send(artmTopics);
     } else {
-        // TODO: error handling
-        res.send("error -- data not ready");
+        res.send({"error": "topics data not ready yet"});
     }
 });
 
@@ -80,8 +79,7 @@ app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
     var fileObj = req.file;
 
     if (fileObj.mimetype != "text/plain") {
-        errorMsg = "unknown filetype -- " + fileObj.mimetype;
-        res.send(errorMsg);
+        res.send({"error": "unknown filetype '" + fileObj.mimetype + "'"});
         return;
     }
 
