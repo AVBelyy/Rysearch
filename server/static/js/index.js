@@ -100,7 +100,7 @@ function initializeKnowledgeMap() {
         maxLevel = Math.max(maxLevel, topicsData[topicId]["level_id"]);
     }
 
-    function getTopicGroups(levelId, parentName) {
+    function initGroupsData(levelId, parentName) {
         // TODO: rewrite (O(|T|^2) complexity)
         var filterer;
         if (parentName === undefined) {
@@ -113,6 +113,13 @@ function initializeKnowledgeMap() {
             };
         }
         var response = [];
+        var siblingsCount = 0;
+        for (var topicId in topicsData) {
+            var topic = topicsData[topicId];
+            if (topic["level_id"] == levelId) {
+                siblingsCount++;
+            }
+        }
         for (var topicId in topicsData) {
             var topic = topicsData[topicId];
             if (filterer(topic)) {
@@ -126,12 +133,16 @@ function initializeKnowledgeMap() {
                         label: [p1, p2].join(" и "),
                         id: topicId,
                         isLastLevel: topic["level_id"] == maxLevel,
-                        groups: getTopicGroups(levelId + 1, topicId),
-                        weight: Math.log(1 + topic["weight"])
+                        groups: initGroupsData(levelId + 1, topicId),
+                        //weight: Math.log(1 + topic["weight"]),
+                        spectrumId: topic["spectrum_id"],
                     });
                 }
             }
         }
+        response.sort(function (a, b) {
+            return a["spectrumId"] - b["spectrumId"];
+        });
         return response.length ? response : undefined;
     }
 
@@ -142,6 +153,7 @@ function initializeKnowledgeMap() {
         pullbackDuration: 0,
 
         relaxationVisible: true,
+        relaxationInitializer: "ordered",
 
         onGroupHold: function (e) {
             if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
@@ -175,7 +187,13 @@ function initializeKnowledgeMap() {
         },
 
         dataObject: {
-            groups: getTopicGroups(0)
+            groups: initGroupsData(0)
+        },
+
+        groupColorDecorator: function (opts, params, vars) {
+            if (params.group.color) {
+                vars.groupColor = params.group.color;
+            }
         }
     });
 
@@ -310,19 +328,40 @@ function initializeDocSunburst(theta, filename) {
 }
     */
 
-    // Prepare theta vector.
     var pairs = Object.keys(theta).map(function (tid) {
-        return [tid, theta[tid]];
+        return [tid, theta[tid], topicsData[tid].spectrum_id];
     }).sort(function (a, b) {
         return b[1] - a[1];
     });
-    var groups = [];
-    for (var i = 0; i < pairs.length; i++) {
-        var topicId = pairs[i][0], topicWeight = pairs[i][1];
-        if (topicId in topicsData && topicId.startsWith("level_0")) {
-            topicName = topicsData[topicId]["top_words"].join(", ");
-            groups.push({label: topicName, weight: topicWeight});
+    function initGroupsData(levelId, parentName) {
+        var groups = [];
+        var filterer;
+        if (parentName === undefined) {
+            filterer = function (t) {
+                return t["level_id"] == levelId && t["parents"].length == 0;
+            };
+        } else {
+            filterer = function (t) {
+                return t["level_id"] == levelId && t["parents"].indexOf(parentName) != -1;
+            };
         }
+        for (var i = 0; i < pairs.length; i++) {
+            var topicId = pairs[i][0], topicWeight = pairs[i][1], topicSpectrumId = pairs[i][2];
+            if (topicId in topicsData && filterer(topicsData[topicId])) {
+                topicName = topicsData[topicId]["top_words"].join(", ");
+                groups.push({label: topicName,
+                             weight: topicWeight,
+                             spectrumId: topicSpectrumId,
+                             groups: initGroupsData(levelId + 1, topicId)});
+                if (groups.length >= 5) {
+                    break;
+                }
+            }
+        }
+        groups = groups.sort(function (a, b) {
+            return a.spectrumId - b.spectrumId;
+        });
+        return groups;
     }
 
     // Use the defaults for all parameters.
@@ -331,7 +370,7 @@ function initializeDocSunburst(theta, filename) {
         captureMouseEvents: false,
         pixelRatio: Math.min(1.5, window.devicePixelRatio || 1),
         dataObject: {
-            groups: groups
+            groups: initGroupsData(0)
         }
     });
 
@@ -339,8 +378,8 @@ function initializeDocSunburst(theta, filename) {
         titleBar: "inscribed",
         //diameter: "60%",
         titleBarTextColor: "#000",
-        rainbowStartColor: "#2E8B57",
-        rainbowEndColor: "#98FB98",
+        //rainbowStartColor: "#2E8B57",
+        //rainbowEndColor: "#98FB98",
         titleBarLabelDecorator: function (attrs) {
             attrs.label = filename;
         }
@@ -531,4 +570,11 @@ function onclickAssessSkip() {
 
     assess["ids"].pop();
     showNextAssessment();
+}
+
+function rainbowColormap(maxValue) {
+    return function(i) {
+        var hue = i / maxValue * 360;
+        return "hsl(" + hue + ", 100%, 50%)";
+    }
 }

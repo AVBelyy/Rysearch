@@ -122,6 +122,12 @@ try:
     # Initialize arbitrary pipeline
     pipeline = arbitrary.get_pipeline()
 
+    # Initialize BigARTM
+    lib = artm.wrapper.LibArtm()
+    lc = artm.messages.ConfigureLoggingArgs()
+    lc.minloglevel = 4
+    lib.ArtmConfigureLogging(lc)
+
     # Initialize ZeroMQ
     context = zmq.Context()
     socket = context.socket(zmq.DEALER)

@@ -59,6 +59,12 @@ class ArtmModel:
             theta_new_index.append(topic_id)
         self._theta.index = theta_new_index
 
+        # Construct spectrums map
+        spectrum_map = {}
+        for spectrum in self._extra_info["spectrums"]:
+            for i, topic_id in enumerate(spectrum):
+                spectrum_map[topic_id] = i
+
         # Construct topics infos
         # TODO: make topic maning an external procedure
         self._topics = {}
@@ -68,12 +74,14 @@ class ArtmModel:
                 # subject topic names are "topic_X", where X = 0, 1, ...
                 # background topic names are "background_X", where X = 0, 1, ...
                 if regex.match("^topic_\d+$", tid):
-                    self._topics[self._from_lid_tid_map[lid, tid]] = {
-                        "level_id":  lid,
-                        "top_words": list(top_words),
-                        "parents":   [],
-                        "children":  [],
-                        "weight":    0,
+                    topic_id = self._from_lid_tid_map[lid, tid]
+                    self._topics[topic_id] = {
+                        "level_id":    lid,
+                        "top_words":   list(top_words),
+                        "parents":     [],
+                        "children":    [],
+                        "weight":      0,
+                        "spectrum_id": spectrum_map.get(topic_id)
                     }
 
         # Define parent-child relationship for topics
