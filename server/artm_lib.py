@@ -3,6 +3,7 @@ import pandas as pd
 import pickle
 import regex
 import os
+import operator
 
 from experiments import hierarchy_utils
 from pymongo import MongoClient
@@ -159,6 +160,13 @@ class ArtmModel:
                 response[topic_id] = float(pdt)
         return response
 
+    def filter_docs_presents_in_themes(self, docs_ids):
+        result = []
+        for doc_id in docs_ids:
+            pass
+
+        return result
+
     @property
     def theta(self):
         return self._theta
@@ -191,6 +199,14 @@ class ArtmModel:
 class ArtmDataSource:
     def __init__(self):
         self._db = MongoClient()
+        # Прости за эти константы, предзабитые в код ^_^
+        # надо мержить коллекции, чтоб этого говна не было
+        self._collections = ["habrahabr", "postnauka"]
+
+        # Потенциально долго
+        for collection in [self._db.datasets[col] for col in self._collections]:
+            if not ("markdown_text" in collection.index_information().keys()):
+                collection.create_index([("markdown", "text")], default_language='russian')
 
     def get_documents_by_ids(self, docs_ids, with_texts=True, with_modalities=False):
         fields = {"title": 1, "authors_names" : 1}
@@ -227,6 +243,22 @@ class ArtmDataSource:
             response.append(res)
         return response
 
+    def search_documents(self, query, limit=10):
+        db = self._db
+        all_results = []
+        for collection in self._collections:
+            col_results = db.datasets[collection].find( 
+                                {'$text': {'$search': 'анализы данных'}}, 
+                                {'score': {'$meta'  : 'textScore' }}).sort(
+                                [('score', {'$meta': 'textScore'})]).limit(limit)
+            for row in col_results:
+                all_results.append({
+                    'doc_id'    : row['_id'],
+                    'score'     : row['score'],
+                    })
+
+        return sorted(all_results, key = lambda x: x["score"])[:limit]
+        
 
 class ArtmBridge:
     def __init__(self, model_path):
@@ -276,6 +308,10 @@ class ArtmBridge:
         dist_series = pd.Series(data=dist, index=self._rec_theta.index)
         sim_docs_ids = dist_series.nsmallest(rec_docs_count + 1).index
         return sim_docs_ids[1:] # Not counting the `doc` itself.
+
+    def search_documents(self, query, limit=10):
+        search_result = self._data_source.search_documents(query, limit)
+
 
     @property
     def data_source(self):
