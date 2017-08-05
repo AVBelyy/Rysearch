@@ -5,7 +5,7 @@ import regex
 import os
 import operator
 
-from experiments import hierarchy_utils
+import hierarchy_utils
 from pymongo import MongoClient
 from scipy.linalg import norm
 from sklearn.metrics.pairwise import pairwise_distances
@@ -63,10 +63,10 @@ class ArtmModel:
         self._theta.index = theta_new_index
 
         # Construct spectrums map
-        spectrum_map = {}
-        for spectrum in self._extra_info["spectrums"]:
-            for i, topic_id in enumerate(spectrum):
-                spectrum_map[topic_id] = i
+        #spectrum_map = {}
+        #for spectrum in self._extra_info["spectrums"]:
+        #    for i, topic_id in enumerate(spectrum):
+        #        spectrum_map[topic_id] = i
 
         # Construct topics infos
         # TODO: make topic maning an external procedure
@@ -84,7 +84,7 @@ class ArtmModel:
                         "parents":     [],
                         "children":    [],
                         "weight":      0,
-                        "spectrum_id": spectrum_map.get(topic_id)
+                        #"spectrum_id": spectrum_map.get(topic_id)
                     }
 
         # Define parent-child relationship for topics
@@ -147,6 +147,27 @@ class ArtmModel:
         sorted_ptd = ptd[ptd >= self._doc_thresholds].sort_values(ascending=False)
         return sorted_ptd
 
+
+    def get_topics_by_docs_ids(self, docs_ids):
+        for doc_id in docs_ids:
+            if doc["doc_id"] not in self._doc_thresholds.index:
+                continue
+            topics_for_doc = {}
+            topics_for_doc["doc_id"] = doc_id
+            comparsion = self._doc_theta[doc_id] > self._doc_thresholds[doc_id]
+            last_level_topics = list(comparsion[comparsion == True].index)
+            levels_count = self._to_lid_tid_map[last_level_topics[0]][0] + 1
+            topics_for_doc["level_%d"%(levels_count-1)] = last_level_topics
+            for lid in range(1, levels_count)[::-1]:
+                current_level = topics_for_doc["level_%d"%(lid)]
+                higher_level = []
+                for topic in current_level:
+                    higher_level += self._topics[topic]["parents"]
+                topics_for_doc["level_%d"%(lid-1)] = higher_level
+            topics_for_docs.append(topics_for_doc)
+        return topics_for_docs
+
+
     def transform_one(self, vw_path, batch_path):
         transform_batch = artm.BatchVectorizer(data_format="vowpal_wabbit",
                                                data_path=vw_path,
@@ -162,6 +183,7 @@ class ArtmModel:
 
     def filter_docs_presents_in_themes(self, docs_ids):
         result = []
+
         for doc_id in docs_ids:
             pass
 
@@ -258,7 +280,7 @@ class ArtmDataSource:
                     })
 
         return sorted(all_results, key = lambda x: x["score"])[:limit]
-        
+
 
 class ArtmBridge:
     def __init__(self, model_path):
@@ -307,11 +329,11 @@ class ArtmBridge:
         dist = pairwise_distances([doc], self._rec_theta, hellinger_dist)[0]
         dist_series = pd.Series(data=dist, index=self._rec_theta.index)
         sim_docs_ids = dist_series.nsmallest(rec_docs_count + 1).index
-        return sim_docs_ids[1:] # Not counting the `doc` itself.
+        return sim_docs2_ids[1:] # Not counting the `doc` itself.
 
     def search_documents(self, query, limit=10):
-        search_result = self._data_source.search_documents(query, limit)
-
+        search_results = self._data_source.search_documents(query, limit)
+        return self._model.get_topics_by_docs_ids(search_results)
 
     @property
     def data_source(self):
