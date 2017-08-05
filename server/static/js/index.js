@@ -14,6 +14,8 @@ var foamtree;
 // Current assessor-mode state.
 var assess;
 
+var last_search_query = ""
+
 // Initialize FoamTree after the whole page loads to make sure
 // the element has been laid out and has non-zero dimensions.
 $(document).ready(function () {
@@ -27,6 +29,8 @@ $(document).ready(function () {
     $("#home-btn").click(function () {
         displayMode(MODE_MAP);
     });
+
+    $("#search-text-field").keyup(onPerformSearchQuery);
 
     $("#assess-btn").click(onclickAssessorMode);
 
@@ -459,6 +463,20 @@ function onclickDocumentCell(doc_id) {
                 }});
         }});
 }
+
+function onPerformSearchQuery(){
+    var search_field = document.getElementById("search-text-field")
+    var query = search_field.value
+    if ((query.slice(-1) == " ") & (last_search_query != query)) {
+        $.get({url: "/perform_search",
+            data: {query: query},
+            success: function(result) {
+                alert(result)
+            }
+        })
+
+    }
+ }
 
 function onclickAssessorMode() {
     var assessorId = 0;   // TODO: set from URL hash-part

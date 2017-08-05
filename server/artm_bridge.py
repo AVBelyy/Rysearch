@@ -54,8 +54,9 @@ def process_msg(message):
             doc["recommended_tags"] = artm_bridge.recommend_tags_by_doc(doc)
         response = doc
 
-    elif meassage["act"] == "perform_search":
+    elif message["act"] == "perform_search":
         query = message["query"]
+        print(query)
         response = artm_bridge.search_documents(query);
 
     elif message["act"] == "recommend_docs":

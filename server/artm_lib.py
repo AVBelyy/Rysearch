@@ -149,10 +149,12 @@ class ArtmModel:
 
 
     def get_topics_by_docs_ids(self, docs_ids):
-        for doc_id in docs_ids:
+        topics_for_docs = []
+        for doc in docs_ids:
             if doc["doc_id"] not in self._doc_thresholds.index:
                 continue
             topics_for_doc = {}
+            doc_id = doc["doc_id"]
             topics_for_doc["doc_id"] = doc_id
             comparsion = self._doc_theta[doc_id] > self._doc_thresholds[doc_id]
             last_level_topics = list(comparsion[comparsion == True].index)
