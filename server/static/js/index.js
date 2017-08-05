@@ -3,7 +3,6 @@ var currentMode;
 MODE_MAP = 0;        // Display map only.
 MODE_DOCS = 1;       // Display documents and recommendations.
 MODE_ASSESS = 2;     // Display documents and assessor controls.
-MODE_TRANSFORM = 3;  // Display upload form and document info.
 
 //  The dictionary with the information about topics.
 var topicsData;
@@ -30,37 +29,62 @@ $(document).ready(function () {
 
     $("#assess-btn").click(onclickAssessorMode);
 
-    $("#transform-btn").click(function () {
-        displayMode(MODE_TRANSFORM);
+    $("#upload_btn").click(function() {
+        if ($(this).hasClass("disabled")) {
+            return false;
+        }
     });
 
-    // TODO: Write proper code
-    $("#upload").fileinput({
+    $("#upload_hidden").change(function () {
+        // TODO: check for XHR2 browser support
+        var formData = new FormData();
+        formData.append(this.name, this.files[0]);
+        this.value = "";
+
+        $("#upload_btn").addClass("disabled");
+        $("#upload_caption").removeClass("glyphicon-upload");
+        $("#upload_caption").addClass("glyphicon-refresh glyphicon-refresh-animate");
+
+        $.ajax({
+            url: "/transform-doc",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            cache: false,
+            success: function (data) {
+                if (data.ok) {
+                    var theta = data.ok.theta;
+                    highlightTopics(theta);
+                } else {
+                    // Error handling
+                    alert("Error: " + data.response.error.message);
+                }
+                $("#upload_btn").removeClass("disabled");
+                $("#upload_caption").addClass("glyphicon-upload");
+                $("#upload_caption").removeClass("glyphicon-refresh glyphicon-refresh-animate");
+            }
+        });
+
+        return false;
+    });
+    /*$("#upload_btn").fileinput({
         uploadUrl: "/transform-doc",
         showPreview: false,
         maxFileCount: 1,
         autoReplace: true,
         previewFileType: "text",
-        allowedFileExtensions: ["txt", "md"]
+        allowedFileExtensions: ["txt", "md"],
+        showCaption: false,
     }).on("fileuploaded", function(e, data, previewId, index) {
-        if (data.response.ok) {
-            var theta = data.response.ok.theta;
-            var filename = data.filenames[0];
-            $("#upload_container").hide();
-            initializeDocSunburst(theta, filename);
-        } else {
-            // Error handling
-            alert("Error: " + data.response.error.message);
-        }
-    });
+    });*/
 });
 
 function displayMode(mode) {
     var mapContainer = document.getElementById("knowledge_map_container"),
         overviewContainer = document.getElementById("overview_container"),
         documentContainer = d3.select(document.getElementById("document_container")),
-        recommendationsContainer = d3.select(document.getElementById("recommendations_container")),
-        transformContainer = document.getElementById("transform_container");
+        recommendationsContainer = d3.select(document.getElementById("recommendations_container"));
 
     recommendationsContainer.selectAll("ul").remove();
     documentContainer.selectAll("h1").remove();
@@ -72,24 +96,17 @@ function displayMode(mode) {
         case MODE_MAP:
             mapContainer.style.display = "inherit";
             overviewContainer.style.display = "none";
-            transformContainer.style.display = "none";
             foamtree.zoom(foamtree.get("dataObject"));
             break;
         case MODE_DOCS:
             mapContainer.style.display = "none";
             overviewContainer.style.display = "inherit";
-            transformContainer.style.display = "none";
             break;
         case MODE_ASSESS:
             mapContainer.style.display = "none";
             overviewContainer.style.display = "inherit";
-            transformContainer.style.display = "none";
             handleAssessKeys();
             break;
-        case MODE_TRANSFORM:
-            mapContainer.style.display = "none";
-            overviewContainer.style.display = "none";
-            transformContainer.style.display = "block";
     }
 
     currentMode = mode;
@@ -134,12 +151,13 @@ function initializeKnowledgeMap() {
                     var tw = topic["top_words"].map(function (s) { return s.replace(/_/g, " "); });
                     var p1 = tw.slice(0, tw.length - 1).join(", ");
                     var p2 = tw[tw.length - 1];
+                    var isLastLevel = topic["level_id"] == maxLevel;
                     response.push({
                         label: [p1, p2].join(" и "),
                         id: topicId,
-                        isLastLevel: topic["level_id"] == maxLevel,
+                        groupType: isLastLevel ? "last_level" : "level",
                         groups: initGroupsData(levelId + 1, topicId),
-                        //weight: Math.log(1 + topic["weight"]),
+                        weight: 1, //Math.log(1 + topic["weight"]),
                         spectrumId: topic["spectrum_id"],
                     });
                 }
@@ -158,10 +176,12 @@ function initializeKnowledgeMap() {
         pullbackDuration: 0,
 
         relaxationVisible: true,
+        relaxationMaxDuration: 1000,
         relaxationInitializer: "ordered",
+        groupMinDiameter: 0,
 
         onGroupHold: function (e) {
-            if (!e.secondary && e.group.isLastLevel && !e.group.groups) {
+            if (!e.secondary && e.group.groupType == "last_level" && !e.group.groups) {
                 loader.loadDocuments(e.group);
             } else {
                 this.open({ groups: e.group, open: !e.secondary });
@@ -177,9 +197,9 @@ function initializeKnowledgeMap() {
             var toZoom;
             if (group) {
                 // Open on left-click, close on right-click
-                if (!e.secondary && group.isLastLevel && !e.group.groups) {
+                if (!e.secondary && group.groupType == "last_level" && !e.group.groups) {
                     loader.loadDocuments(group);
-                } else if (!e.secondary && group.isDoc) {
+                } else if (!e.secondary && group.groupType == "doc") {
                     loader.showOverview(group);
                 } else {
                     this.open({ groups: group, open: !e.secondary });
@@ -220,28 +240,51 @@ function initializeKnowledgeMap() {
     //
     var loader = (function (foamtree) {
         return {
+            loadDocumentPage: function (docs, weights, offset, limit) {
+                var groups = [];
+                var pageDocs;
+
+                if (offset + limit < docs.length) {
+                    pageDocs = docs.slice(offset, offset + limit - 1);
+                } else {
+                    pageDocs = docs.slice(offset);
+                }
+
+                for (var i in pageDocs) {
+                    var doc = pageDocs[i];
+                    var w = weights[doc.doc_id];
+                    var label = doc.title;
+                    groups.push({
+                        label: label,
+                        id: doc.doc_id,
+                        groupType: "doc",
+                        weight: w
+                    });
+                }
+
+                if (offset + limit < docs.length) {
+                    var remainingCount = docs.length - offset - limit;
+                    groups.push({
+                        label: "...",
+                        groupType: "scroll_page",
+                        groups: loader.loadDocumentPage(docs, weights, offset + limit, limit),
+                        weight: 0.5
+                    });
+                }
+
+                return groups;
+            },
             loadDocuments: function (group) {
                 if (!group.groups && !group.loading) {
                     spinner.start(group);
 
+                    var docsCount = topicsData[group.id]["weight"];
                     $.get({url: "/get-documents",
-                        data: { topic_id: group.id },
+                        data: { topic_id: group.id, offset: 0, limit: docsCount },
                         success: function (result) {
                             var docs = result.ok.docs;
                             var weights = result.ok.weights;
-                            group.groups = [];
-                            for (var i in docs) {
-                                var doc = docs[i];
-                                var w = weights[doc.doc_id];
-                                var label = doc.title;
-                                group.groups.push({
-                                    label: label,
-                                    id: doc.doc_id,
-                                    isDoc: true,
-                                    weight: w
-                                });
-                            }
-
+                            group.groups = loader.loadDocumentPage(docs, weights, 0, 10);
                             foamtree.open({ groups: group, open: true }).then(function () {
                                 spinner.stop(group);
                             });
@@ -584,4 +627,59 @@ function rainbowColormap(maxValue) {
         var hue = i / maxValue * 360;
         return "hsl(" + hue + ", 100%, 50%)";
     }
+}
+
+function highlightTopics(theta) {
+    // Set weights for topics
+    var maxStartWeight = 1;
+    var minWeightMultiplier = 0.5;
+    var topNTopics = [5, 1]; // TODO: level-dependent constant, fix.
+    var items = Object.keys(theta).map(function (k) { return [k, theta[k]]; });
+    items.sort(function (a, b) { return b[1] - a[1]; });
+    var weights = {};
+    var maxWeights = {};
+    var minWeights = {};
+    var counts = {};
+    for (var i = 0; i < items.length; i++) {
+        var topicId = items[i][0], weight = Math.log(1 + items[i][1]);
+        var parentTopic;
+        if (topicId.startsWith("level_0")) {
+            parentTopic = "top";
+        } else if (topicId in topicsData && topicsData[topicId]["parents"]) {
+            parentTopic = topicsData[topicId]["parents"][0];
+        } else {
+            continue;
+        }
+        if (!(parentTopic in maxWeights)) {
+            maxWeights[parentTopic] = weight;
+            counts[parentTopic] = 0;
+        }
+        var levelId = topicsData[topicId]["level_id"];
+        if (counts[parentTopic] < topNTopics[levelId]) {
+            minWeights[parentTopic] = weight / maxWeights[parentTopic];
+            weights[topicId] = minWeights[parentTopic] * maxStartWeight;
+            counts[parentTopic]++;
+        } else {
+            weights[topicId] = minWeights[parentTopic] * minWeightMultiplier;
+        }
+    }
+    // Update weights on the knowledge map
+    var dataObject = foamtree.get("dataObject");
+    var updateWeights = function (groups) {
+        for (var i in groups) {
+            var group = groups[i];
+            if (group["groupType"] == "level" || group["groupType"] == "last_level") {
+                var gid = group["id"];
+                if (gid in weights) {
+                    group["weight"] = weights[gid];
+                    foamtree.redraw(false, group);
+                }
+                if (group["groupType"] == "level") {
+                    updateWeights(group["groups"]);
+                }
+            }
+        }
+    };
+    updateWeights(dataObject["groups"]);
+    foamtree.update();
 }

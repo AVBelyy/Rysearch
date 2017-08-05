@@ -61,7 +61,10 @@ app.get("/get-topics", function (req, res) {
 
 app.get("/get-documents", function (req, res) {
     var topicId = req.query.topic_id;
-    sendToSock(res, { "act": "get_documents", "topic_id": topicId });
+    var offset = parseInt(req.query.offset);
+    var limit = parseInt(req.query.limit);
+    sendToSock(res, { "act": "get_documents", "topic_id": topicId,
+                      "offset": offset, "limit": limit });
 });
 
 app.get("/get-document", function (req, res) {

@@ -26,18 +26,21 @@
             <div class="navbar-header">
                 <a class="navbar-brand" href="https://github.com/AVBelyy/Rysearch" target="_blank">Rysearch</a>
             </div>
-            <ul class="nav navbar-nav">
+            <!--<ul class="nav navbar-nav">
                 <li><a id="home-btn" href="#">Explore</a></li>
                 <li class="active"><a id="transform-btn" href="#">Classify</a></li>
-                <!--<li><a id="assess-btn" href="#">Assess</a></li>-->
-            </ul>
+                <li><a id="assess-btn" href="#">Assess</a></li>
+            </ul>-->
             <form class="navbar-form navbar-right">
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search">
+                        <input id="search_text" type="text" class="form-control"
+                               placeholder="Type or drop a doc here">
                     <div class="input-group-btn">
-                        <button class="btn btn-default" type="submit">
-                            <i class="glyphicon glyphicon-search"></i>
-                        </button>
+                        <label id="upload_btn" class="btn btn-default btn-file">
+                            <i id="upload_caption" class="glyphicon glyphicon-upload"></i>
+                            <input id="upload_hidden" name="doc" type="file" style="display: none;"
+                                   accept="text/plain">
+                        </label>
                     </div>
                 </div>
             </form>
@@ -50,16 +53,6 @@
         <div id="overview_container" class="row">
             <div class="col-md-8" id="document_container"></div>
             <div class="col-md-4" id="recommendations_container"></div>
-        </div>
-        <div id="transform_container" class="row">
-            <!-- File upload input form -->
-            <div id="upload_container" class="col-md-4 col-md-offset-4">
-                <label class="control-label">Upload a document:</label>
-                <input id="upload" name="doc" type="file" class="file-loading"
-                 accept="text/plain">
-             </div>
-             <!-- Document Sunburst visualization -->
-             <div id="doc_sunburst_container"></div>
         </div>
     </div>
 

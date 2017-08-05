@@ -38,9 +38,13 @@ def process_msg(message):
         response = artm_bridge.model.topics
     elif message["act"] == "get_documents":
         topic_id = message["topic_id"]
+        offset = message["offset"]
+        limit = message["limit"]
         if type(topic_id) is not str:
             raise BridgeParamError("incorrect param type: `topic_id`")
-        docs, weights = artm_bridge.get_documents_by_topic(topic_id, limit=20)
+        if type(offset) is not int or type(limit) is not int:
+            raise BridgeParamError("`limit` and `offset` fields must be integer")
+        docs, weights = artm_bridge.get_documents_by_topic(topic_id, offset=offset, limit=limit)
         response = {"docs": docs, "weights": weights}
     elif message["act"] == "get_document":
         doc_id = message["doc_id"]

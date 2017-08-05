@@ -3,5 +3,9 @@ hartm/
 transform_batches/
 test_batches/
 bigartm.*
-dictionary.txt
+*.txt
+*.batch
+*.tar
+*.tar.gz
+*.tar.bz2
 *.csv
