@@ -148,7 +148,7 @@ class ArtmModel:
         return sorted_ptd
 
 
-    def get_topics_by_docs_ids(self, docs_ids):
+    def get_topics_by_docs_ids_old_format(self, docs_ids):
         topics_for_docs = []
         for doc in docs_ids:
             if doc["doc_id"] not in self._doc_thresholds.index:
@@ -169,6 +169,40 @@ class ArtmModel:
             topics_for_docs.append(topics_for_doc)
         return topics_for_docs
 
+    def get_topics_by_docs_ids(self, docs_ids):
+        theta = self.theta
+        doc_theta = self._doc_theta
+        thresholds = self._doc_thresholds
+        topics = self.topics
+        tid_lid = self._to_lid_tid_map
+
+        lowest_level_counter = pd.Series(np.zeros(len(doc_theta.index)), index = doc_theta.index)
+
+        for doc in docs_ids:
+            if doc["doc_id"] not in thresholds.index:
+                continue
+            topics_for_doc = {}
+            lowest_level_counter += (doc_theta[doc["doc_id"]] > thresholds[doc["doc_id"]]).map(lambda x: 1 if x else 0)
+
+        levels_count = tid_lid[lowest_level_counter.index[0]][0] + 1
+            
+        answer = pd.Series(np.zeros(len(theta.index)), index = theta.index)
+        answer[lowest_level_counter.index] = lowest_level_counter
+
+        for lid in range(0, levels_count-1)[::-1]:
+            curr_level_topics = list(filter(lambda x: x.startswith("level_%d_t"%(lid)), answer.index))
+            for topic in curr_level_topics:
+                for child in topics[topic]["children"]:
+                    answer[topic] += answer[child]
+
+        for lid in range(0, levels_count)[::-1]:
+            curr_level_topics = list(filter(lambda x: x.startswith("level_%d_t"%(lid)), answer.index))
+            total_docs_in_this_level = sum(answer[curr_level_topics])
+            if total_docs_in_this_level != 0:
+                answer[curr_level_topics] /= total_docs_in_this_level
+
+        return dict(answer)
+
 
     def transform_one(self, vw_path, batch_path):
         transform_batch = artm.BatchVectorizer(data_format="vowpal_wabbit",
@@ -183,13 +217,6 @@ class ArtmModel:
                 response[topic_id] = float(pdt)
         return response
 
-    def filter_docs_presents_in_themes(self, docs_ids):
-        result = []
-
-        for doc_id in docs_ids:
-            pass
-
-        return result
 
     @property
     def theta(self):
@@ -267,12 +294,12 @@ class ArtmDataSource:
             response.append(res)
         return response
 
-    def search_documents(self, query, limit=10):
+    def search_query_in_all_docs(self, query, limit=10):
         db = self._db
         all_results = []
         for collection in self._collections:
-            col_results = db.datasets[collection].find( 
-                                {'$text': {'$search': 'анализы данных'}}, 
+            col_results = db.datasets[collection].find(
+                                {'$text': {'$search': query}},
                                 {'score': {'$meta'  : 'textScore' }}).sort(
                                 [('score', {'$meta': 'textScore'})]).limit(limit)
             for row in col_results:
@@ -283,6 +310,20 @@ class ArtmDataSource:
 
         return sorted(all_results, key = lambda x: x["score"])[:limit]
 
+    def search_query_in_models_docs(self, query, limit=10):
+        db = self._db
+        col_results = db.model.all_docs.find(
+                                {'$text': {'$search': query}},
+                                {'score': {'$meta'  : 'textScore' }}).sort(
+                                [('score', {'$meta': 'textScore'})]).limit(limit)
+        results = []
+        for row in col_results:
+            results.append({
+                    'doc_id'    : row['_id'],
+                    'score'     : row['score'],
+                    })
+
+        return sorted(results, key = lambda x: x["score"])
 
 class ArtmBridge:
     def __init__(self, model_path):
@@ -334,7 +375,7 @@ class ArtmBridge:
         return sim_docs2_ids[1:] # Not counting the `doc` itself.
 
     def search_documents(self, query, limit=10):
-        search_results = self._data_source.search_documents(query, limit)
+        search_results = self._data_source.search_query_in_models_docs(query, limit)
         return self._model.get_topics_by_docs_ids(search_results)
 
     @property

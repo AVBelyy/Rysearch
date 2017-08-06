@@ -16,7 +16,9 @@ var assess;
 
 var last_search_query = ""
 
-// Initialize FoamTree after the whole page loads to make sure
+var typingTimer;
+var doneTypingInterval = 200;
+
 // the element has been laid out and has non-zero dimensions.
 $(document).ready(function () {
     // Load topic hierarchy.
@@ -30,7 +32,12 @@ $(document).ready(function () {
         displayMode(MODE_MAP);
     });
 
-    $("#search-text-field").keyup(onPerformSearchQuery);
+    $("#search-text-field").keyup(function(){
+        clearTimeout(typingTimer);
+        if ($('#search-text-field').val()) {
+                typingTimer = setTimeout(onPerformSearchQuery, doneTypingInterval);
+            }
+    });
 
     $("#assess-btn").click(onclickAssessorMode);
 
@@ -467,11 +474,17 @@ function onclickDocumentCell(doc_id) {
 function onPerformSearchQuery(){
     var search_field = document.getElementById("search-text-field")
     var query = search_field.value
-    if ((query.slice(-1) == " ") & (last_search_query != query)) {
-        $.get({url: "/perform_search",
+    if (true) {
+        last_search_query = query;
+        $.get({url: "/perform-search",
             data: {query: query},
             success: function(result) {
-                alert(result)
+                if (result.ok) {
+                    alert(Object.keys(result.ok));
+                }
+                else {
+                    alert("Search error");
+                }
             }
         })
 

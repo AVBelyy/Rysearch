@@ -53,12 +53,10 @@ def process_msg(message):
         if message["recommend_tags"]:
             doc["recommended_tags"] = artm_bridge.recommend_tags_by_doc(doc)
         response = doc
-
     elif message["act"] == "perform_search":
         query = message["query"]
         print(query)
-        response = artm_bridge.search_documents(query);
-
+        response = artm_bridge.search_documents(query)
     elif message["act"] == "recommend_docs":
         doc_id = message["doc_id"]
         if type(doc_id) is not str:
@@ -177,6 +175,7 @@ try:
             response["error"] = {"message": e.message}
         except Exception as e:
             response["error"] = {"message": "server error"}
+            print(repr(e)) # TODO: debug
 
         socket.send_multipart([
             client,
