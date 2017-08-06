@@ -742,7 +742,7 @@ function resetHighlight() {
                 var gid = group["id"];
                 if (gid in initialTopicsWeights) {
                     group["weight"] = initialTopicsWeights[gid];
-                    foamtree.redraw(false, group);
+                    //foamtree.redraw(false, group);
                 }
                 if (group["groupType"] == "level") {
                     updateWeights(group["groups"]);
@@ -751,5 +751,6 @@ function resetHighlight() {
         }
     };
     updateWeights(dataObject["groups"]);
-    foamtree.update();
+    foamtree.set("dataObject", dataObject);
+    //foamtree.update();
 }
