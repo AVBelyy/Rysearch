@@ -33,11 +33,13 @@ $(document).ready(function () {
         displayMode(MODE_MAP);
     });
 
-    $("#search_text").keyup(function(e) {
-        // TODO: heuristic, come up with sth better
-        if (e.which == 13 || (e.key.length > 1 && e.which != 8)) {
-            return false;
+    $("#search_text").keypress(function (e) {
+        if (e.which == 13) {
+            e.preventDefault();
         }
+    });
+
+    $("#search_text").on("input", function() {
         clearTimeout(typingTimer);
         if ($("#search_text").val()) {
             typingTimer = setTimeout(onPerformSearchQuery, doneTypingInterval);
