@@ -13,8 +13,12 @@ var foamtree;
 // Current assessor-mode state.
 var assess;
 
+// Search field typing timer.
 var typingTimer;
 var doneTypingInterval = 200;
+
+// Initial weights of topics.
+var initialTopicsWeights = {};
 
 // the element has been laid out and has non-zero dimensions.
 $(document).ready(function () {
@@ -29,10 +33,16 @@ $(document).ready(function () {
         displayMode(MODE_MAP);
     });
 
-    $("#search_text").keyup(function() {
+    $("#search_text").keyup(function(e) {
+        // TODO: heuristic, come up with sth better
+        if (e.which == 13 || (e.key.length > 1 && e.which != 8)) {
+            return false;
+        }
         clearTimeout(typingTimer);
         if ($("#search_text").val()) {
             typingTimer = setTimeout(onPerformSearchQuery, doneTypingInterval);
+        } else {
+            resetHighlight();
         }
     });
 
@@ -89,6 +99,7 @@ $(document).ready(function () {
 
 function displayMode(mode) {
     var mapContainer = document.getElementById("knowledge_map_container"),
+        searchTextContainer = document.getElementById("search_text_container"),
         overviewContainer = document.getElementById("overview_container"),
         documentContainer = d3.select(document.getElementById("document_container")),
         recommendationsContainer = d3.select(document.getElementById("recommendations_container"));
@@ -102,15 +113,18 @@ function displayMode(mode) {
     switch (mode) {
         case MODE_MAP:
             mapContainer.style.display = "inherit";
+            searchTextContainer.style.display = "inherit";
             overviewContainer.style.display = "none";
             foamtree.zoom(foamtree.get("dataObject"));
             break;
         case MODE_DOCS:
             mapContainer.style.display = "none";
+            searchTextContainer.style.display = "none";
             overviewContainer.style.display = "inherit";
             break;
         case MODE_ASSESS:
             mapContainer.style.display = "none";
+            searchTextContainer.style.display = "none";
             overviewContainer.style.display = "inherit";
             handleAssessKeys();
             break;
@@ -159,14 +173,16 @@ function initializeKnowledgeMap() {
                     var p1 = tw.slice(0, tw.length - 1).join(", ");
                     var p2 = tw[tw.length - 1];
                     var isLastLevel = topic["level_id"] == maxLevel;
+                    var w = 1; //Math.log(1 + topic["weight"])
                     response.push({
                         label: [p1, p2].join(" и "),
                         id: topicId,
                         groupType: isLastLevel ? "last_level" : "level",
                         groups: initGroupsData(levelId + 1, topicId),
-                        weight: 1, //Math.log(1 + topic["weight"]),
+                        weight: w,
                         spectrumId: topic["spectrum_id"],
                     });
+                    initialTopicsWeights[topicId] = w;
                 }
             }
         }
@@ -702,6 +718,28 @@ function highlightTopics(theta) {
                 var gid = group["id"];
                 if (gid in weights) {
                     group["weight"] = weights[gid];
+                    foamtree.redraw(false, group);
+                }
+                if (group["groupType"] == "level") {
+                    updateWeights(group["groups"]);
+                }
+            }
+        }
+    };
+    updateWeights(dataObject["groups"]);
+    foamtree.update();
+}
+
+function resetHighlight() {
+    // Update weights on the knowledge map
+    var dataObject = foamtree.get("dataObject");
+    var updateWeights = function (groups) {
+        for (var i in groups) {
+            var group = groups[i];
+            if (group["groupType"] == "level" || group["groupType"] == "last_level") {
+                var gid = group["id"];
+                if (gid in initialTopicsWeights) {
+                    group["weight"] = initialTopicsWeights[gid];
                     foamtree.redraw(false, group);
                 }
                 if (group["groupType"] == "level") {
