@@ -178,7 +178,12 @@ function initializeKnowledgeMap() {
         relaxationVisible: true,
         relaxationMaxDuration: 1000,
         relaxationInitializer: "ordered",
+
         groupMinDiameter: 0,
+        groupBorderWidth: 2,
+        groupStrokeWidth: 1,
+        groupInsetWidth: 3,
+        groupSelectionOutlineWidth: 4,
 
         onGroupHold: function (e) {
             if (!e.secondary && e.group.groupType == "last_level" && !e.group.groups) {
@@ -250,10 +255,12 @@ function initializeKnowledgeMap() {
                     pageDocs = docs.slice(offset);
                 }
 
+                var sumWeights = 0;
                 for (var i in pageDocs) {
                     var doc = pageDocs[i];
                     var w = weights[doc.doc_id];
                     var label = doc.title;
+                    sumWeights += w;
                     groups.push({
                         label: label,
                         id: doc.doc_id,
@@ -268,7 +275,7 @@ function initializeKnowledgeMap() {
                         label: "...",
                         groupType: "scroll_page",
                         groups: loader.loadDocumentPage(docs, weights, offset + limit, limit),
-                        weight: 0.5
+                        weight: sumWeights / 2
                     });
                 }
 
