@@ -57,7 +57,7 @@ try:
         if len(available_workers) > 0 and prev_len == 0:
             # Poll for clients now that a worker is available
             poller.register(frontend, zmq.POLLIN)
-        if len(available_workers) == 0:
+        if len(available_workers) == 0 and frontend in poller:
             # Don't poll clients if no workers are available
             poller.unregister(frontend)
 except:

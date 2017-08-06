@@ -181,7 +181,7 @@ try:
             response["ok"] = process_msg(message)
         except BridgeParamError as e:
             response["error"] = {"message": e.message}
-        except Exception as e:
+        except BaseException as e:
             response["error"] = {"message": "server error"}
             print(repr(e)) # TODO: debug
 
