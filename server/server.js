@@ -33,7 +33,9 @@ sock.on("message", function (reply) {
         artmTopics = reply.data;
     } else if (reply.act == "recommend_docs" || reply.act == "get_documents" ||
                reply.act == "get_document" || reply.act == "transform_doc" ||
-               reply.act == "get_next_assessment" || reply.act == "assess_document") {
+               reply.act == "get_next_assessment" || reply.act == "assess_document" ||
+               reply.act == "perform_search"
+        ) {
         var res = routingQueue[reply.id];
         delete routingQueue[reply.id];
         res.send(reply.data);
@@ -65,6 +67,12 @@ app.get("/get-documents", function (req, res) {
     var limit = parseInt(req.query.limit);
     sendToSock(res, { "act": "get_documents", "topic_id": topicId,
                       "offset": offset, "limit": limit });
+});
+
+app.get("/perform-search", function (req, res) {
+    var query = req.query.query;
+    var limit = parseInt(req.query.limit);
+    sendToSock(res, { "act": "perform_search", "query": query, "limit": limit });
 });
 
 app.get("/get-document", function (req, res) {

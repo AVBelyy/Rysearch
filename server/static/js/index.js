@@ -13,7 +13,9 @@ var foamtree;
 // Current assessor-mode state.
 var assess;
 
-// Initialize FoamTree after the whole page loads to make sure
+var typingTimer;
+var doneTypingInterval = 200;
+
 // the element has been laid out and has non-zero dimensions.
 $(document).ready(function () {
     // Load topic hierarchy.
@@ -27,7 +29,12 @@ $(document).ready(function () {
         displayMode(MODE_MAP);
     });
 
-    $("#assess-btn").click(onclickAssessorMode);
+    $("#search_text").keyup(function() {
+        clearTimeout(typingTimer);
+        if ($("#search_text").val()) {
+            typingTimer = setTimeout(onPerformSearchQuery, doneTypingInterval);
+        }
+    });
 
     $("#upload_btn").click(function() {
         if ($(this).hasClass("disabled")) {
@@ -57,7 +64,7 @@ $(document).ready(function () {
                     var theta = data.ok.theta;
                     highlightTopics(theta);
                 } else {
-                    // Error handling
+                    // TODO: error handling
                     alert("Error: " + data.response.error.message);
                 }
                 $("#upload_btn").removeClass("disabled");
@@ -510,6 +517,22 @@ function onclickDocumentCell(doc_id) {
         }});
 }
 
+function onPerformSearchQuery() {
+    var query = $("#search_text").val();
+    $.get({url: "/perform-search",
+        data: {query: query, limit: 100},
+        success: function (result) {
+            if (result.ok) {
+                theta = result.ok;
+                highlightTopics(theta);
+            } else {
+                // TODO: error handling
+                alert("Error: " + data.response.error.message);
+            }
+        }
+    })
+ }
+
 function onclickAssessorMode() {
     var assessorId = 0;   // TODO: set from URL hash-part
     var assessorsCnt = 1; // TODO: set from URL hash-part
@@ -650,7 +673,7 @@ function highlightTopics(theta) {
     for (var i = 0; i < items.length; i++) {
         var topicId = items[i][0], weight = Math.log(1 + items[i][1]);
         var parentTopic;
-        if (topicId.startsWith("level_0")) {
+        if (topicId in topicsData && topicId.startsWith("level_0")) {
             parentTopic = "top";
         } else if (topicId in topicsData && topicsData[topicId]["parents"]) {
             parentTopic = topicsData[topicId]["parents"][0];

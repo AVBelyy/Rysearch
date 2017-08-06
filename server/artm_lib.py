@@ -3,8 +3,9 @@ import pandas as pd
 import pickle
 import regex
 import os
+import operator
 
-from experiments import hierarchy_utils
+import hierarchy_utils
 from pymongo import MongoClient
 from scipy.linalg import norm
 from sklearn.metrics.pairwise import pairwise_distances
@@ -62,10 +63,10 @@ class ArtmModel:
         self._theta.index = theta_new_index
 
         # Construct spectrums map
-        spectrum_map = {}
-        for spectrum in self._extra_info["spectrums"]:
-            for i, topic_id in enumerate(spectrum):
-                spectrum_map[topic_id] = i
+        #spectrum_map = {}
+        #for spectrum in self._extra_info["spectrums"]:
+        #    for i, topic_id in enumerate(spectrum):
+        #        spectrum_map[topic_id] = i
 
         # Construct topics infos
         # TODO: make topic maning an external procedure
@@ -83,7 +84,7 @@ class ArtmModel:
                         "parents":     [],
                         "children":    [],
                         "weight":      0,
-                        "spectrum_id": spectrum_map.get(topic_id)
+                        #"spectrum_id": spectrum_map.get(topic_id)
                     }
 
         # Define parent-child relationship for topics
@@ -146,6 +147,44 @@ class ArtmModel:
         sorted_ptd = ptd[ptd >= self._doc_thresholds].sort_values(ascending=False)
         return sorted_ptd
 
+    def get_topics_by_docs_ids(self, docs_ids):
+        theta = self._theta
+        doc_theta = self._doc_theta
+        thresholds = self._doc_thresholds
+        topics = self._topics
+        tid_lid = self._to_lid_tid_map
+
+        lowest_level_counter = pd.Series(np.zeros(len(doc_theta.index)),
+                                         index=doc_theta.index)
+
+        for doc in docs_ids:
+            if doc["doc_id"] not in thresholds.index:
+                continue
+            topics_for_doc = {}
+            comparison = (doc_theta[doc["doc_id"]] > thresholds[doc["doc_id"]])
+            lowest_level_counter += np.int32(comparison)
+
+        levels_count = tid_lid[lowest_level_counter.index[0]][0] + 1
+
+        answer = pd.Series(np.zeros(len(theta.index)), index=theta.index)
+        answer[lowest_level_counter.index] = lowest_level_counter
+
+        is_level_topic = lambda lid: lambda x: x.startswith("level_%d_t" % lid)
+        for lid in range(0, levels_count-1)[::-1]:
+            curr_level_topics = list(filter(is_level_topic(lid), answer.index))
+            for topic in curr_level_topics:
+                for child in topics[topic]["children"]:
+                    answer[topic] += answer[child]
+
+        for lid in range(0, levels_count)[::-1]:
+            curr_level_topics = list(filter(is_level_topic(lid), answer.index))
+            total_docs_in_this_level = sum(answer[curr_level_topics])
+            if total_docs_in_this_level != 0:
+                answer[curr_level_topics] /= total_docs_in_this_level
+
+        return dict(answer)
+
+
     def transform_one(self, vw_path, batch_path):
         transform_batch = artm.BatchVectorizer(data_format="vowpal_wabbit",
                                                data_path=vw_path,
@@ -158,6 +197,7 @@ class ArtmModel:
                 topic_id = self._from_artm_tid_map[artm_tid]
                 response[topic_id] = float(pdt)
         return response
+
 
     @property
     def theta(self):
@@ -227,6 +267,19 @@ class ArtmDataSource:
             response.append(res)
         return response
 
+    def search_query_in_models_docs(self, query, limit=10):
+        col_results = self._db.model.all_docs.find(
+                            {"$text": {"$search": query}},
+                            {"score": {"$meta": "textScore"}}).sort(
+                            [("score", {"$meta": "textScore"})]).limit(limit)
+        results = []
+        for row in col_results:
+            results.append({
+                    "doc_id": row["_id"],
+                    "score":  row["score"],
+                    })
+
+        return sorted(results, key=lambda x: x["score"])
 
 class ArtmBridge:
     def __init__(self, model_path):
@@ -275,7 +328,11 @@ class ArtmBridge:
         dist = pairwise_distances([doc], self._rec_theta, hellinger_dist)[0]
         dist_series = pd.Series(data=dist, index=self._rec_theta.index)
         sim_docs_ids = dist_series.nsmallest(rec_docs_count + 1).index
-        return sim_docs_ids[1:] # Not counting the `doc` itself.
+        return sim_docs2_ids[1:] # Not counting the `doc` itself.
+
+    def search_documents(self, query, limit=10):
+        search_results = self._data_source.search_query_in_models_docs(query, limit)
+        return self._model.get_topics_by_docs_ids(search_results)
 
     @property
     def data_source(self):

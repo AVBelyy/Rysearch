@@ -57,6 +57,14 @@ def process_msg(message):
         if message["recommend_tags"]:
             doc["recommended_tags"] = artm_bridge.recommend_tags_by_doc(doc)
         response = doc
+    elif message["act"] == "perform_search":
+        query = message["query"]
+        limit = message["limit"]
+        if type(query) is not str:
+            raise BridgeParamError("incorrect param type: `query`")
+        if type(limit) is not int:
+            raise BridgeParamError("incorrect param type: `limit`")
+        response = artm_bridge.search_documents(query, limit=limit)
     elif message["act"] == "recommend_docs":
         doc_id = message["doc_id"]
         if type(doc_id) is not str:
@@ -68,7 +76,7 @@ def process_msg(message):
         try:
             # Initialize file resources
             doc_file = open(doc_path)
-            vw_fd, vw_path = tempfile.mkstemp(prefix="upload", text=True)
+            vw_fd,vw_path = tempfile.mkstemp(prefix="upload", text=True)
             vw_file = os.fdopen(vw_fd, "w")
             batch_path = tempfile.mkdtemp(prefix="batch")
             # Parse uploaded file
@@ -175,6 +183,7 @@ try:
             response["error"] = {"message": e.message}
         except Exception as e:
             response["error"] = {"message": "server error"}
+            print(repr(e)) # TODO: debug
 
         socket.send_multipart([
             client,
