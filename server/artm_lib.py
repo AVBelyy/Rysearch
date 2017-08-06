@@ -328,7 +328,7 @@ class ArtmBridge:
         dist = pairwise_distances([doc], self._rec_theta, hellinger_dist)[0]
         dist_series = pd.Series(data=dist, index=self._rec_theta.index)
         sim_docs_ids = dist_series.nsmallest(rec_docs_count + 1).index
-        return sim_docs2_ids[1:] # Not counting the `doc` itself.
+        return sim_docs_ids[1:] # Not counting the `doc` itself.
 
     def search_documents(self, query, limit=10):
         search_results = self._data_source.search_query_in_models_docs(query, limit)
