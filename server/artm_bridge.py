@@ -73,6 +73,7 @@ def process_msg(message):
         response = artm_bridge.data_source.get_documents_by_ids(sim_docs_ids, with_texts=False)
     elif message["act"] == "transform_doc":
         doc_path = message["doc_path"]
+        filename = message["filename"]
         try:
             # Initialize file resources
             doc_file = open(doc_path)
@@ -86,6 +87,7 @@ def process_msg(message):
                       .fit_transform([doc])
             # Transform uploaded document and return its Theta matrix
             response = {}
+            response["filename"] = filename
             response["theta"] = artm_bridge.model.transform_one(vw_path, batch_path)
         except:
             raise

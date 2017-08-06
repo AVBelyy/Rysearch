@@ -95,7 +95,8 @@ app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
     }
 
     // Make request to ARTM_bridge
-    sendToSock(res, { "act": "transform_doc", "doc_path": fileObj.path });
+    sendToSock(res, { "act": "transform_doc", "doc_path": fileObj.path,
+                      "filename": fileObj.originalname });
 });
 
 app.get("/get-next-assessment", function (req, res) {
