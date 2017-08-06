@@ -63,10 +63,10 @@ class ArtmModel:
         self._theta.index = theta_new_index
 
         # Construct spectrums map
-        #spectrum_map = {}
-        #for spectrum in self._extra_info["spectrums"]:
-        #    for i, topic_id in enumerate(spectrum):
-        #        spectrum_map[topic_id] = i
+        spectrum_map = {}
+        for spectrum in self._extra_info["spectrums"]:
+            for i, topic_id in enumerate(spectrum):
+                spectrum_map[topic_id] = i
 
         # Construct topics infos
         # TODO: make topic maning an external procedure
@@ -84,7 +84,7 @@ class ArtmModel:
                         "parents":     [],
                         "children":    [],
                         "weight":      0,
-                        #"spectrum_id": spectrum_map.get(topic_id)
+                        "spectrum_id": spectrum_map.get(topic_id)
                     }
 
         # Define parent-child relationship for topics
