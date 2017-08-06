@@ -310,7 +310,7 @@ function initializeKnowledgeMap() {
                 if (!group.groups && !group.loading) {
                     spinner.start(group);
 
-                    var docsCount = topicsData[group.id]["weight"];
+                    var docsCount = Math.min(topicsData[group.id]["weight"], 200);
                     $.get({url: "/get-documents",
                         data: { topic_id: group.id, offset: 0, limit: docsCount },
                         success: function (result) {
