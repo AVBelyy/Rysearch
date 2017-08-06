@@ -69,13 +69,13 @@ $(document).ready(function () {
             processData: false,
             contentType: false,
             cache: false,
-            success: function (data) {
-                if (data.ok) {
-                    var theta = data.ok.theta;
+            success: function (result) {
+                if (result.ok) {
+                    var theta = result.ok.theta;
                     highlightTopics(theta);
                 } else {
                     // TODO: error handling
-                    alert("Error: " + data.response.error.message);
+                    alert("Error: " + result.error.message);
                 }
                 $("#upload_btn").removeClass("disabled");
                 $("#upload_caption").addClass("glyphicon-upload");
@@ -543,7 +543,7 @@ function onPerformSearchQuery() {
                 highlightTopics(theta);
             } else {
                 // TODO: error handling
-                alert("Error: " + data.response.error.message);
+                alert("Error: " + result.error.message);
             }
         }
     })
