@@ -29,8 +29,9 @@ $(document).ready(function () {
             initializeKnowledgeMap();
         }});
 
-    $("#home-btn").click(function () {
+    $("#home_btn").click(function () {
         displayMode(MODE_MAP);
+        updateNavigationHierarchy("home", null);
     });
 
     $("#search_text").keypress(function (e) {
@@ -44,6 +45,7 @@ $(document).ready(function () {
         if ($("#search_text").val()) {
             typingTimer = setTimeout(onPerformSearchQuery, doneTypingInterval);
         } else {
+            updateNavigationHierarchy("home", null);
             resetHighlight();
         }
     });
@@ -74,6 +76,7 @@ $(document).ready(function () {
             success: function (result) {
                 if (result.ok) {
                     var theta = result.ok.theta;
+                    updateNavigationHierarchy("perform_search_doc", result.ok.filename);
                     highlightTopics(theta);
                 } else {
                     // TODO: error handling
@@ -397,6 +400,51 @@ function initializeKnowledgeMap() {
     displayMode(MODE_MAP);
 }
 
+function updateNavigationHierarchy(act, title) {
+    if (act === "display_doc") {
+        var navbar_doc_title = $("<li id='navbar_doc_container'><a id='navbar_doc_title'>" + title + "</a></li>");
+        $("#navbar_doc_container").remove();
+        $("#navigation_bar").append(navbar_doc_title);
+        $("#navbar_doc_container").prop("class", "active");
+        $("#navbar_search_title").prop("href", "#");
+        $("#home_btn").prop("href", "#");
+        $("#navbar_home_container").prop("class", "");
+        $("#navbar_search_container").prop("class", "");
+    }
+    else if (act === "perform_search") {
+        var navbar_search_title = $("<li id='navbar_search_container'><a id='navbar_search_title'>" + title + "</a></li>");
+        $("#navbar_doc_container").remove();
+        $("#navbar_search_container").remove();
+        $("#navigation_bar").append(navbar_search_title);
+        $("#navbar_search_container").prop("class", "active");
+        $("#navbar_home_container").prop("class", "");
+        $("#home_btn").prop("href", "#");
+        $("#navbar_search_title").click(onclickNavbarSearchTitle);
+    }
+    else if (act === "perform_search_doc") {
+        $("#search_text").val("");
+        updateNavigationHierarchy("perform_search", title);
+    }
+    else if (act === "home") {
+        if ($("#navbar_search_container").length) {
+            resetHighlight();
+        }
+        $("#home_btn").removeAttr("href");
+        $("#search_text").val("");
+        $("#navbar_doc_container").remove();
+        $("#navbar_search_container").remove();
+        $("#navbar_home_container").prop("class", "active");
+    }
+}
+
+function onclickNavbarSearchTitle() {
+    displayMode(MODE_MAP);
+    // TODO: refactor?
+    $("#navbar_doc_title").remove();
+    $("#navbar_search_title").removeAttr("href");
+    $("#navbar_search_container").prop("class", "active");
+}
+
 function initializeDocSunburst(theta, filename) {
     /*
     // We respin until the visualization container has non-zero area (there are race
@@ -526,6 +574,7 @@ function onclickDocumentCell(doc_id) {
         success: function (result) {
             var doc = result.ok;
             displayDocument(doc);
+            updateNavigationHierarchy("display_doc", doc.title);
             $.get({url: "/recommend-docs",
                 data: { doc_id: doc.doc_id },
                 success: function (result) {
@@ -542,7 +591,9 @@ function onPerformSearchQuery() {
         success: function (result) {
             if (result.ok) {
                 theta = result.ok;
+                foamtree.zoom(foamtree.get("dataObject"));
                 highlightTopics(theta);
+                updateNavigationHierarchy("perform_search", query);
             } else {
                 // TODO: error handling
                 alert("Error: " + result.error.message);
@@ -551,6 +602,7 @@ function onPerformSearchQuery() {
     })
  }
 
+// TODO: remove assess-related code
 function onclickAssessorMode() {
     var assessorId = 0;   // TODO: set from URL hash-part
     var assessorsCnt = 1; // TODO: set from URL hash-part
