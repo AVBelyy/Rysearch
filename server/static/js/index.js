@@ -76,6 +76,7 @@ $(document).ready(function () {
             success: function (result) {
                 if (result.ok) {
                     var theta = result.ok.theta;
+                    foamtree.zoom(foamtree.get("dataObject"));
                     updateNavigationHierarchy("perform_search_doc", result.ok.filename);
                     highlightTopics(theta);
                 } else {
@@ -592,8 +593,8 @@ function onPerformSearchQuery() {
             if (result.ok) {
                 theta = result.ok;
                 foamtree.zoom(foamtree.get("dataObject"));
-                highlightTopics(theta);
                 updateNavigationHierarchy("perform_search", query);
+                highlightTopics(theta);
             } else {
                 // TODO: error handling
                 alert("Error: " + result.error.message);
