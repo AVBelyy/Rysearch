@@ -20,6 +20,8 @@ var doneTypingInterval = 200;
 // Initial weights of topics.
 var initialTopicsWeights = {};
 
+var search_docs;
+
 // the element has been laid out and has non-zero dimensions.
 $(document).ready(function () {
     // Load topic hierarchy.
@@ -591,7 +593,9 @@ function onPerformSearchQuery() {
         data: {query: query, limit: 100},
         success: function (result) {
             if (result.ok) {
-                theta = result.ok;
+                theta = result.ok.theta;
+                search_docs = result.ok.docs;
+                alert(theta[0]);
                 foamtree.zoom(foamtree.get("dataObject"));
                 updateNavigationHierarchy("perform_search", query);
                 highlightTopics(theta);

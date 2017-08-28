@@ -6,6 +6,7 @@ import json
 import zmq
 import regex
 import tempfile
+import traceback
 import glob
 import os
 
@@ -44,8 +45,7 @@ def process_msg(message):
             raise BridgeParamError("incorrect param type: `topic_id`")
         if type(offset) is not int or type(limit) is not int:
             raise BridgeParamError("`limit` and `offset` fields must be integer")
-        docs, weights = artm_bridge.get_documents_by_topic(topic_id, offset=offset, limit=limit)
-        response = {"docs": docs, "weights": weights}
+        response = artm_bridge.get_documents_by_topic(topic_id, offset=offset, limit=limit)
     elif message["act"] == "get_document":
         doc_id = message["doc_id"]
         if type(doc_id) is not str:
@@ -64,7 +64,7 @@ def process_msg(message):
             raise BridgeParamError("incorrect param type: `query`")
         if type(limit) is not int:
             raise BridgeParamError("incorrect param type: `limit`")
-        response = artm_bridge.search_documents(query, limit=limit)
+        response = dict(zip(["docs", "theta"],  artm_bridge.search_documents(query, limit=limit)))
     elif message["act"] == "recommend_docs":
         doc_id = message["doc_id"]
         if type(doc_id) is not str:
@@ -185,7 +185,7 @@ try:
             response["error"] = {"message": e.message}
         except BaseException as e:
             response["error"] = {"message": "server error"}
-            print(repr(e)) # TODO: debug
+            traceback.print_exc()
 
         socket.send_multipart([
             client,
@@ -196,7 +196,6 @@ try:
             }).encode("utf-8")
         ])
 except:
-    import traceback
     traceback.print_exc()
     print("Shutting down ARTM_bridge...")
 finally:
