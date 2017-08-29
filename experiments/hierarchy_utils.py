@@ -365,7 +365,7 @@ class hARTM(object):
         info = {"parent_level_weight": [
             level._phi_batch_weight for level in self._levels[1:]]}
         with open(os.path.join(path, "info.dump"), "wb") as fout:
-            pickle.dump(info, fout)
+            pickle.dump(info, fout, protocol=2)
 
     def load(self, path):
         """
