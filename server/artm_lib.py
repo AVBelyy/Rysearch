@@ -37,7 +37,7 @@ class ArtmModel:
         self._psis = []
         self._theta = self._extra_info["theta"]
         for level_idx, artm_level in enumerate(self._model):
-            self._phis.append(artm_level.get_phi(class_ids="flat_tag"))
+            self._phis.append(artm_level.get_phi(class_ids=["flat_tag", "text"]))
             if level_idx > 0:
                 self._psis.append(artm_level.get_psi())
 
@@ -72,7 +72,7 @@ class ArtmModel:
         # TODO: make topic maning an external procedure
         self._topics = {}
         for lid, phi in enumerate(self._phis):
-            names = phi.index[phi.values.argsort(axis=0)[-2 * topic_naming_n_words:][::-1].T]
+            names = phi.index[phi.values.argsort(axis=0)[::-1].T]
             for tid, top_words in zip(phi.columns, names):
                 # subject topic names are "topic_X", where X = 0, 1, ...
                 # background topic names are "background_X", where X = 0, 1, ...
@@ -102,8 +102,11 @@ class ArtmModel:
         # Assign top words to child topics
         # TODO: make topic maning an external procedure
         for topic_id, topic in self._topics.items():
+            parents_ids_set = set(topic["parents"])
+            sibling_topics_ids = [tid for tid, t in self._topics.items()
+                                  if parents_ids_set & set(t["parents"])]
             used_top_words = sum(map(lambda tid: self._topics[tid]["top_words"][:topic_naming_n_words],
-                                     topic["parents"]), [])
+                                     topic["parents"] + sibling_topics_ids), [])
             topic["top_words"] = list(filter(lambda tw: tw not in used_top_words,
                                              topic["top_words"]))[:topic_naming_n_words]
 
