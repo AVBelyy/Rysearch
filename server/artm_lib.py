@@ -157,12 +157,18 @@ class ArtmModel:
         lowest_level_counter = pd.Series(np.zeros(len(doc_theta.index)),
                                          index=doc_theta.index)
 
+        # docs = dict(zip(theta.index, [set()]*len(theta.index)))
+        docs = {key: set() for key in theta.index}
+
         for doc in docs_ids:
             if doc["doc_id"] not in thresholds.index:
                 continue
             topics_for_doc = {}
             comparison = (doc_theta[doc["doc_id"]] > thresholds[doc["doc_id"]])
             lowest_level_counter += np.int32(comparison)
+            for topic, doc_in_topic in zip(doc_theta.index, comparison):
+                if doc_in_topic:
+                    docs[topic].add(doc["doc_id"])
 
         levels_count = tid_lid[lowest_level_counter.index[0]][0] + 1
 
@@ -175,6 +181,7 @@ class ArtmModel:
             for topic in curr_level_topics:
                 for child in topics[topic]["children"]:
                     answer[topic] += answer[child]
+                    docs[topic] |= docs[child]
 
         for lid in range(0, levels_count)[::-1]:
             curr_level_topics = list(filter(is_level_topic(lid), answer.index))
@@ -182,7 +189,7 @@ class ArtmModel:
             if total_docs_in_this_level != 0:
                 answer[curr_level_topics] /= total_docs_in_this_level
 
-        return dict(answer)
+        return dict(zip(docs.keys(), [list(v) for k, v in docs.items()])), dict(answer)
 
 
     def transform_one(self, vw_path, batch_path):
@@ -301,7 +308,6 @@ class ArtmBridge:
         docs_ids = sorted_ptd.index
         docs = self._data_source.get_documents_by_ids(docs_ids, with_texts=False)
         weights = {k: float(v) for k, v in sorted_ptd.items()}
-
         if with_weights:
             return docs, weights
         else:

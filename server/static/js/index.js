@@ -20,7 +20,7 @@ var doneTypingInterval = 200;
 // Initial weights of topics.
 var initialTopicsWeights = {};
 
-var search_docs;
+var search_docs = {};
 
 // the element has been laid out and has non-zero dimensions.
 $(document).ready(function () {
@@ -183,6 +183,7 @@ function initializeKnowledgeMap() {
                     var isLastLevel = topic["level_id"] == maxLevel;
                     var w = 1; //Math.log(1 + topic["weight"])
                     response.push({
+                        //label: topic["level_id"] == 0 ? tw[0] : [p1, p2].join(" и "),
                         label: [p1, p2].join(" и "),
                         id: topicId,
                         groupType: isLastLevel ? "last_level" : "level",
@@ -215,6 +216,32 @@ function initializeKnowledgeMap() {
         groupStrokeWidth: 1,
         groupInsetWidth: 3,
         groupSelectionOutlineWidth: 4,
+
+        groupLabelLayoutDecorator: function (opts, props, vars) {
+            var group = props.group;
+
+            if (group.fontWeight) {
+                vars.fontWeight = group.fontWeight;
+            }
+        },
+
+        // Концептуально Воронцову можно показать...
+        /*
+        stacking: "flattened",
+        groupLabelLayoutDecorator: function (opts, props, vars) {
+            if (props.description) {
+              // Lower padding
+              vars.verticalPadding = 0.1;
+
+              // Allow the label to take the full
+              // height of the description group
+              vars.maxTotalTextHeight = 1.46;
+
+              // Render description labels in bold
+              vars.fontWeight = "700";
+            }
+        },
+        */
 
         onGroupHold: function (e) {
             if (!e.secondary && e.group.groupType == "last_level" && !e.group.groups) {
@@ -293,10 +320,11 @@ function initializeKnowledgeMap() {
                     var label = doc.title;
                     sumWeights += w;
                     groups.push({
-                        label: label,
+                        label: doc.found ? label + " ®" : label,
                         id: doc.doc_id,
                         groupType: "doc",
-                        weight: w
+                        weight: w,
+                        fontWeight: doc.found ? "bold" : "normal",
                     });
                 }
 
@@ -322,7 +350,27 @@ function initializeKnowledgeMap() {
                         success: function (result) {
                             var docs = result.ok.docs;
                             var weights = result.ok.weights;
-                            group.groups = loader.loadDocumentPage(docs, weights, 0, 10);
+                            var docs_ids = docs.map(function(doc) {return doc["doc_id"]})
+                            var sorted_docs = [];
+                            //alert(search_docs[group.id].length);
+                            if (group.id in search_docs) {
+                                for (i = 0; i < search_docs[group.id].length; i++) {
+                                    doc_pos = docs_ids.indexOf(search_docs[group.id][i]);
+                                    if (doc_pos > -1) {
+                                        sorted_docs.push(docs[doc_pos]);
+                                        docs.splice(doc_pos, 1);
+                                        docs_ids.splice(doc_pos, 1);
+                                    }
+                                }
+                            }
+                            //alert(sorted_docs.map(function (doc){return doc["title"]}));
+                            sorted_docs = sorted_docs.map(function(doc) {
+                                doc["found"] = true;
+                                return doc;
+                            }).concat(docs);
+                            //alert(sorted_docs.map(function(doc){return doc["title"]}));
+                            //alert(docs.map(function(doc){return doc["title"]}));
+                            group.groups = loader.loadDocumentPage(sorted_docs, weights, 0, 10);
                             foamtree.open({ groups: group, open: true }).then(function () {
                                 spinner.stop(group);
                             });
@@ -344,18 +392,64 @@ function initializeKnowledgeMap() {
         foamtree.set("groupContentDecoratorTriggering", "onSurfaceDirty");
         foamtree.set("groupContentDecorator", function (opts, props, vars) {
             var group = props.group;
-            if (!group.loading) {
-                return;
-            }
-
-            // Draw the spinner animation
-
             // The center of the polygon
             var cx = props.polygonCenterX;
             var cy = props.polygonCenterY;
 
             // Drawing context
             var ctx = props.context;
+            var centerX = props.polygonCenterX;
+
+            // We want to put the extra label inside a semi transparent rectangle.
+            // To do this, we need to draw the rectangle first and then the label.
+            // The dimensions of the rectangle are returned by the fillPolygonWithText()
+            // method, so to get the right drawing order, we need to draw the text
+            // to a scratch buffer, draw the rectangle and then draw the text we
+            // saved in the scratch buffer.
+            if ("docs_count" in group) {
+                var scratch = ctx.scratch();
+
+                var info = scratch.fillPolygonWithText(
+                    // Fit the extra text inside the main polygon
+                    props.polygon,
+
+                    // Fit the extra text below the main label
+                    centerX, props.labelBoxTop + props.labelBoxHeight,
+
+                    // use non-breakable space to prevent line breaks
+                    group["docs_count"] + "\u00a0docs",
+
+                    {
+                        maxFontSize: 0.6 * props.labelFontSize, // restrict max font size
+                        verticalAlign: "top", // flow the text downwards from the center point
+                        verticalPadding: 0.1, // use some smaller than default padding
+                        maxTotalHeight: 1 // use the full available height
+                    });
+
+                // Draw the rectangle. FoamTree already set for us the color
+                // it used to draw the label, we'll use that color.
+                if (info.fit) {
+                    var labelBox = info.box;
+                    var boxMargin = labelBox.h * 0.1;
+                    ctx.roundRect(labelBox.x - 2 * boxMargin, labelBox.y - boxMargin,
+                    labelBox.w + 4 * boxMargin, labelBox.h + 2 * boxMargin, boxMargin * 2);
+
+                    ctx.globalAlpha = 0.15;
+                    ctx.fill();
+                    ctx.globalAlpha = 0.25;
+                    ctx.lineWidth = boxMargin * 0.3;
+                    ctx.stroke();
+
+                    // Draw the text from our scratch buffer
+                    ctx.globalAlpha = 1.0;
+                    scratch.replay(ctx);
+                }
+            }
+
+            if (!group.loading) {
+                return;
+            }
+            // Draw the spinner animation
 
             // We'll advance the animation based on the current time
             var now = Date.now();
@@ -595,10 +689,9 @@ function onPerformSearchQuery() {
             if (result.ok) {
                 theta = result.ok.theta;
                 search_docs = result.ok.docs;
-                alert(theta[0]);
                 foamtree.zoom(foamtree.get("dataObject"));
                 updateNavigationHierarchy("perform_search", query);
-                highlightTopics(theta);
+                highlightTopics(theta, search_docs);
             } else {
                 // TODO: error handling
                 alert("Error: " + result.error.message);
@@ -734,7 +827,7 @@ function rainbowColormap(maxValue) {
     }
 }
 
-function highlightTopics(theta) {
+function highlightTopics(theta, docs_for_topics) {
     // Set weights for topics
     var maxStartWeight = 1;
     var minWeightMultiplier = 0.5;
@@ -766,7 +859,7 @@ function highlightTopics(theta) {
             counts[parentTopic]++;
         } else {
             weights[topicId] = minWeights[parentTopic] * minWeightMultiplier;
-        }
+            }
     }
     // Update weights on the knowledge map
     var dataObject = foamtree.get("dataObject");
@@ -775,10 +868,13 @@ function highlightTopics(theta) {
             var group = groups[i];
             if (group["groupType"] == "level" || group["groupType"] == "last_level") {
                 var gid = group["id"];
+                if (docs_for_topics != null) {
+                    group["docs_count"] = docs_for_topics[group["id"]].length;
+                }
                 if (gid in weights) {
                     group["weight"] = weights[gid];
-                    foamtree.redraw(false, group);
                 }
+                foamtree.redraw(false, group);
                 if (group["groupType"] == "level") {
                     updateWeights(group["groups"]);
                 }
