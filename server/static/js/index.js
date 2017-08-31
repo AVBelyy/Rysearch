@@ -93,16 +93,13 @@ $(document).ready(function () {
 
         return false;
     });
-    /*$("#upload_btn").fileinput({
-        uploadUrl: "/transform-doc",
-        showPreview: false,
-        maxFileCount: 1,
-        autoReplace: true,
-        previewFileType: "text",
-        allowedFileExtensions: ["txt", "md"],
-        showCaption: false,
-    }).on("fileuploaded", function(e, data, previewId, index) {
-    });*/
+
+    // Дурацкий способ выключить кнопки «назад» и «вперёд»
+    var docTitle = document.title;
+    History.Adapter.bind(window, "statechange", function() {
+        History.pushState({dummy: true}, docTitle, "#");
+    });
+    History.pushState({dummy: true}, docTitle, "#");
 });
 
 function displayMode(mode) {

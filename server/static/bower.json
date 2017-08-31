@@ -8,7 +8,8 @@
     "dependencies": {
         "d3": ">=4.10.0",
         "bootstrap": ">=3.3.7",
-        "bootstrap-fileinput": ">=4.4.2"
+        "bootstrap-fileinput": ">=4.4.2",
+        "history.js": ">=1.8.0"
     },
     "main": "",
     "license": "MIT",
