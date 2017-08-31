@@ -344,15 +344,14 @@ function initializeKnowledgeMap() {
                 if (!group.groups && !group.loading) {
                     spinner.start(group);
 
-                    var docsCount = Math.min(topicsData[group.id]["weight"], 200);
+                    var docsCount = topicsData[group.id]["weight"];
                     $.get({url: "/get-documents",
                         data: { topic_id: group.id, offset: 0, limit: docsCount },
                         success: function (result) {
                             var docs = result.ok.docs;
                             var weights = result.ok.weights;
-                            var docs_ids = docs.map(function(doc) {return doc["doc_id"]})
+                            var docs_ids = docs.map(function(doc) {return doc["doc_id"]});
                             var sorted_docs = [];
-                            //alert(search_docs[group.id].length);
                             if (group.id in search_docs) {
                                 for (i = 0; i < search_docs[group.id].length; i++) {
                                     doc_pos = docs_ids.indexOf(search_docs[group.id][i]);
@@ -363,11 +362,13 @@ function initializeKnowledgeMap() {
                                     }
                                 }
                             }
-                            //alert(sorted_docs.map(function (doc){return doc["title"]}));
+
+                            //alert(sorted_docs.map(function (doc){return doc["doc_id"]}));
                             sorted_docs = sorted_docs.map(function(doc) {
                                 doc["found"] = true;
                                 return doc;
                             }).concat(docs);
+                            sorted_docs = sorted_docs.slice(0, 200);
                             //alert(sorted_docs.map(function(doc){return doc["title"]}));
                             //alert(docs.map(function(doc){return doc["title"]}));
                             group.groups = loader.loadDocumentPage(sorted_docs, weights, 0, 10);
@@ -407,42 +408,44 @@ function initializeKnowledgeMap() {
             // to a scratch buffer, draw the rectangle and then draw the text we
             // saved in the scratch buffer.
             if ("docs_count" in group) {
-                var scratch = ctx.scratch();
+                if (group["docs_count"] > 0) {
+                    var scratch = ctx.scratch();
 
-                var info = scratch.fillPolygonWithText(
-                    // Fit the extra text inside the main polygon
-                    props.polygon,
+                    var info = scratch.fillPolygonWithText(
+                        // Fit the extra text inside the main polygon
+                        props.polygon,
 
-                    // Fit the extra text below the main label
-                    centerX, props.labelBoxTop + props.labelBoxHeight,
+                        // Fit the extra text below the main label
+                        centerX, props.labelBoxTop + props.labelBoxHeight,
 
-                    // use non-breakable space to prevent line breaks
-                    group["docs_count"] + "\u00a0docs",
+                        // use non-breakable space to prevent line breaks
+                        group["docs_count"] + "\u00a0docs",
 
-                    {
-                        maxFontSize: 0.6 * props.labelFontSize, // restrict max font size
-                        verticalAlign: "top", // flow the text downwards from the center point
-                        verticalPadding: 0.1, // use some smaller than default padding
-                        maxTotalHeight: 1 // use the full available height
-                    });
+                        {
+                            maxFontSize: 0.6 * props.labelFontSize, // restrict max font size
+                            verticalAlign: "top", // flow the text downwards from the center point
+                            verticalPadding: 0.1, // use some smaller than default padding
+                            maxTotalHeight: 1 // use the full available height
+                        });
 
-                // Draw the rectangle. FoamTree already set for us the color
-                // it used to draw the label, we'll use that color.
-                if (info.fit) {
-                    var labelBox = info.box;
-                    var boxMargin = labelBox.h * 0.1;
-                    ctx.roundRect(labelBox.x - 2 * boxMargin, labelBox.y - boxMargin,
-                    labelBox.w + 4 * boxMargin, labelBox.h + 2 * boxMargin, boxMargin * 2);
+                    // Draw the rectangle. FoamTree already set for us the color
+                    // it used to draw the label, we'll use that color.
+                    if (info.fit) {
+                        var labelBox = info.box;
+                        var boxMargin = labelBox.h * 0.1;
+                        ctx.roundRect(labelBox.x - 2 * boxMargin, labelBox.y - boxMargin,
+                        labelBox.w + 4 * boxMargin, labelBox.h + 2 * boxMargin, boxMargin * 2);
 
-                    ctx.globalAlpha = 0.15;
-                    ctx.fill();
-                    ctx.globalAlpha = 0.25;
-                    ctx.lineWidth = boxMargin * 0.3;
-                    ctx.stroke();
+                        ctx.globalAlpha = 0.15;
+                        ctx.fill();
+                        ctx.globalAlpha = 0.25;
+                        ctx.lineWidth = boxMargin * 0.3;
+                        ctx.stroke();
 
-                    // Draw the text from our scratch buffer
-                    ctx.globalAlpha = 1.0;
-                    scratch.replay(ctx);
+                        // Draw the text from our scratch buffer
+                        ctx.globalAlpha = 1.0;
+                        scratch.replay(ctx);
+                    }
                 }
             }
 
@@ -888,6 +891,7 @@ function highlightTopics(theta, docs_for_topics) {
 function resetHighlight() {
     // Update weights on the knowledge map
     var dataObject = foamtree.get("dataObject");
+    search_docs = {};
     var updateWeights = function (groups) {
         for (var i in groups) {
             var group = groups[i];
@@ -897,6 +901,7 @@ function resetHighlight() {
                     group["weight"] = initialTopicsWeights[gid];
                     //foamtree.redraw(false, group);
                 }
+                group["docs_count"] = 0;
                 if (group["groupType"] == "level") {
                     updateWeights(group["groups"]);
                 }
