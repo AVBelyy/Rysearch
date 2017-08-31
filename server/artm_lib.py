@@ -103,10 +103,8 @@ class ArtmModel:
         # TODO: make topic maning an external procedure
         for topic_id, topic in self._topics.items():
             parents_ids_set = set(topic["parents"])
-            sibling_topics_ids = [tid for tid, t in self._topics.items()
-                                  if parents_ids_set & set(t["parents"])]
             used_top_words = sum(map(lambda tid: self._topics[tid]["top_words"][:topic_naming_n_words],
-                                     topic["parents"] + sibling_topics_ids), [])
+                                     topic["parents"]), [])
             topic["top_words"] = list(filter(lambda tw: tw not in used_top_words,
                                              topic["top_words"]))[:topic_naming_n_words]
 
