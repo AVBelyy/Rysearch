@@ -349,10 +349,12 @@ function initializeKnowledgeMap() {
                             var weights = result.ok.weights;
                             var docs_ids = docs.map(function(doc) {return doc["doc_id"]});
                             var sorted_docs = [];
+                            var max_weight = Math.max.apply(null, Object.keys(weights).map(function(key) {return weights[key]}));
                             if (group.id in search_docs) {
                                 for (i = 0; i < search_docs[group.id].length; i++) {
                                     doc_pos = docs_ids.indexOf(search_docs[group.id][i]);
                                     if (doc_pos > -1) {
+                                        weights[docs_ids[doc_pos]] = max_weight;
                                         sorted_docs.push(docs[doc_pos]);
                                         docs.splice(doc_pos, 1);
                                         docs_ids.splice(doc_pos, 1);
