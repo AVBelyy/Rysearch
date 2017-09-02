@@ -22,6 +22,16 @@ var initialTopicsWeights = {};
 
 var search_docs = {};
 
+function numberWithCase(p1, p2, p3, n) {
+    if (n % 10 == 1) {
+        return p1;
+    } else if (2 <= n % 10 && n % 10 <= 4) {
+        return p2;
+    } else {
+        return p3;
+    }
+}
+
 // the element has been laid out and has non-zero dimensions.
 $(document).ready(function () {
     // Load topic hierarchy.
@@ -406,7 +416,11 @@ function initializeKnowledgeMap() {
             // to a scratch buffer, draw the rectangle and then draw the text we
             // saved in the scratch buffer.
             if ("docs_count" in group) {
-                if (group["docs_count"] > 0) {
+                var docsCount = group["docs_count"];
+
+                if (docsCount > 0) {
+                    var suffix = numberWithCase("статья", "статьи", "статей", docsCount);
+
                     var scratch = ctx.scratch();
 
                     var info = scratch.fillPolygonWithText(
@@ -417,14 +431,14 @@ function initializeKnowledgeMap() {
                         centerX, props.labelBoxTop + props.labelBoxHeight,
 
                         // use non-breakable space to prevent line breaks
-                        group["docs_count"] + "\u00a0docs",
+                        docsCount + "\u00a0" + suffix,
 
                         {
                             maxFontSize: 0.6 * props.labelFontSize, // restrict max font size
                             verticalAlign: "top", // flow the text downwards from the center point
-                            verticalPadding: 0.1, // use some smaller than default padding
                             maxTotalHeight: 1 // use the full available height
-                        });
+                        }
+                    );
 
                     // Draw the rectangle. FoamTree already set for us the color
                     // it used to draw the label, we'll use that color.
