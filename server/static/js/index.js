@@ -388,7 +388,6 @@ function initializeKnowledgeMap() {
     // inside groups to show that some content is loading.
     var spinner = (function (foamtree) {
         // Set up a groupContentDecorator that draws the loading spinner
-        foamtree.set("wireframeContentDecorationDrawing", "always");
         foamtree.set("groupContentDecoratorTriggering", "onSurfaceDirty");
         foamtree.set("groupContentDecorator", function (opts, props, vars) {
             var group = props.group;
@@ -876,7 +875,6 @@ function highlightTopics(theta, docs_for_topics) {
                 if (gid in weights) {
                     group["weight"] = weights[gid];
                 }
-                foamtree.redraw(false, group);
                 if (group["groupType"] == "level") {
                     updateWeights(group["groups"]);
                 }
@@ -884,6 +882,7 @@ function highlightTopics(theta, docs_for_topics) {
         }
     };
     updateWeights(dataObject["groups"]);
+    foamtree.redraw();
     foamtree.update();
 }
 
