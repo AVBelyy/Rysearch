@@ -130,7 +130,6 @@ function displayMode(mode) {
             mapContainer.style.display = "inherit";
             searchTextContainer.style.display = "inherit";
             overviewContainer.style.display = "none";
-            foamtree.zoom(foamtree.get("dataObject"));
             break;
         case MODE_DOCS:
             mapContainer.style.display = "none";
@@ -269,12 +268,14 @@ function initializeKnowledgeMap() {
                 // Open on left-click, close on right-click
                 if (!e.secondary && group.groupType == "last_level" && !e.group.groups) {
                     loader.loadDocuments(group);
+                    toZoom = group;
                 } else if (!e.secondary && group.groupType == "doc") {
                     loader.showOverview(group);
+                    toZoom = group.parent;
                 } else {
                     this.open({ groups: group, open: !e.secondary });
+                    toZoom = e.secondary ? group.parent : group;
                 }
-                toZoom = e.secondary ? group.parent : group;
             } else {
                 toZoom = this.get("dataObject");
             }
