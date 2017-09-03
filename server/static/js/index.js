@@ -655,11 +655,13 @@ function displayRecommendations(doc, recommendationsData) {
 function displayDocument(doc) {
     var documentContainer = d3.select(document.getElementById("document_container"));
     var docText = doc.markdown.replace(new RegExp("\n+", "g"), "<br><br>");
-    var docTags = doc.modalities.flat_tag.map(function (t) { return "<u>" + t + "</u>"; })
+    var docTags = doc.modalities.flat_tag.map(function (t) { return "<u>" + t + "</u>"; });
+    var idPrefix = doc.doc_id.split("_")[0];
+    var docImage = "<img class='collection_image' src='img/" + idPrefix + ".png'/>";
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_title")
-        .text(doc.title);
+        .html(doc.title + docImage);
     documentContainer.append("h1")
         .attr("align", "center")
         .attr("class", "document_authors")

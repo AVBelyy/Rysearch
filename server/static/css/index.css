@@ -148,3 +148,8 @@ p {
 #search_text {
     width: 400px;
 }
+
+.collection_image {
+    vertical-align: text-top;
+    margin-left: 0.25em;
+}
