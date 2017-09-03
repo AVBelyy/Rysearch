@@ -667,13 +667,13 @@ function displayDocument(doc) {
     documentContainer.append("p")
         .attr("align", "right")
         .attr("class", "document_tags")
-        .html(docTags.join(", "));
+        .html(docTags.join(", ") + " <b>[исходные]</b>");
     if (doc.recommended_tags) {
         var recommTags = doc.recommended_tags.map(function (t) { return "<u>" + t + "</u>"; })
         documentContainer.append("p")
             .attr("align", "right")
             .attr("class", "document_tags")
-            .html(recommTags.join(", "));
+            .html(recommTags.join(", ") + " <b>[рекомендуемые]</b>");
     }
     documentContainer.append("p")
         .attr("class", "document_text")
