@@ -84,6 +84,7 @@ def process_msg(message):
             # Parse uploaded file
             doc = pipeline.fit_transform(doc_file)
             # Save to Vowpal Wabbit file
+            doc["modalities"]["flat_tag"] = doc["modalities"]["text"] # TODO: gross crutch, remove after fixing model
             text_utils.VowpalWabbitSink(vw_file, lambda x: "upload") \
                       .fit_transform([doc])
             # Transform uploaded document and return its Theta matrix
