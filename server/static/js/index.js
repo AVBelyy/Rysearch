@@ -212,6 +212,7 @@ function initializeKnowledgeMap() {
         parentFillOpacity: 0.9,
         rolloutDuration: 0,
         pullbackDuration: 0,
+        pixelRatio: window.devicePixelRatio || 1,
 
         relaxationVisible: true,
         relaxationMaxDuration: 1000,
