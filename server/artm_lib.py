@@ -37,7 +37,7 @@ class ArtmModel:
         self._psis = []
         self._theta = self._extra_info["theta"]
         for level_idx, artm_level in enumerate(self._model):
-            self._phis.append(artm_level.get_phi(class_ids=["flat_tag", "text"]))
+            self._phis.append(artm_level.get_phi(class_ids=["flat_tag"]))
             if level_idx > 0:
                 self._psis.append(artm_level.get_psi())
 
