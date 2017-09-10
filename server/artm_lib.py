@@ -81,6 +81,7 @@ class ArtmModel:
                     self._topics[topic_id] = {
                         "level_id":    lid,
                         "top_words":   list(top_words),
+                        "_unnamed":    True,
                         "parents":     [],
                         "children":    [],
                         "weight":      0,
@@ -103,10 +104,13 @@ class ArtmModel:
         # TODO: make topic maning an external procedure
         for topic_id, topic in self._topics.items():
             parents_ids_set = set(topic["parents"])
+            sibling_topics_ids = [tid for tid, t in self._topics.items()
+                                  if parents_ids_set & set(t["parents"]) and "_unnamed" not in t]
             used_top_words = sum(map(lambda tid: self._topics[tid]["top_words"][:topic_naming_n_words],
-                                     topic["parents"]), [])
+                                     topic["parents"] + sibling_topics_ids), [])
             topic["top_words"] = list(filter(lambda tw: tw not in used_top_words,
                                              topic["top_words"]))[:topic_naming_n_words]
+            del topic["_unnamed"]
 
         # Define parent-child relationship for topics and documents
         last_lid = self.num_levels - 1
