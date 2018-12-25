@@ -153,6 +153,7 @@ try:
     lc = artm.messages.ConfigureLoggingArgs()
     lc.log_dir = artm_log_path
     lc.minloglevel = 2
+    print("Redirecting ARTM logs to:", artm_log_path)
     artm.wrapper.LibArtm(logging_config=lc)
 
     # Initialize ZeroMQ

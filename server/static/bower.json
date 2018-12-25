@@ -6,10 +6,10 @@
     ],
     "description": "An exploratoRY SEARCH engine",
     "dependencies": {
-        "d3": ">=4.10.0",
-        "bootstrap": ">=3.3.7",
-        "bootstrap-fileinput": ">=4.4.2",
-        "history.js": ">=1.8.0"
+        "d3": "v4.10.0",
+        "bootstrap": "v3.3.7",
+        "bootstrap-fileinput": "v4.4.2",
+        "history.js": "v1.8.0"
     },
     "main": "",
     "license": "MIT",

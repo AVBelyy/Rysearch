@@ -26,7 +26,7 @@ def hellinger_dist(p, q):
 class ArtmModel:
     def __init__(self, model_path, topic_naming_n_words=3, psi_edge_threshold=0.05):
         # Load ARTM model and model extra info
-        self._extra_info = pickle.load(open(os.path.join(model_path, "extra_info.dump"), "rb"))
+        self._extra_info = pd.read_pickle(os.path.join(model_path, "extra_info.dump"))
         self._model = hierarchy_utils.hARTM(theta_columns_naming="title",
                                             cache_theta=True,
                                             class_ids=self._extra_info["class_ids"])
@@ -69,14 +69,14 @@ class ArtmModel:
                 spectrum_map[topic_id] = i
 
         # Construct topics infos
-        # TODO: make topic maning an external procedure
+        # TODO: make topic naming an external procedure
         self._topics = {}
         for lid, phi in enumerate(self._phis):
             names = phi.index[phi.values.argsort(axis=0)[::-1].T]
             for tid, top_words in zip(phi.columns, names):
                 # subject topic names are "topic_X", where X = 0, 1, ...
                 # background topic names are "background_X", where X = 0, 1, ...
-                if regex.match("^topic_\d+$", tid):
+                if regex.match(r"^topic_\d+$", tid):
                     topic_id = self._from_lid_tid_map[lid, tid]
                     self._topics[topic_id] = {
                         "level_id":    lid,
@@ -92,9 +92,9 @@ class ArtmModel:
         for lid, psi in enumerate(self._psis):
             psi = (psi >= psi_edge_threshold)
             for tid1 in psi.columns:
-                if regex.match("^topic_\d+$", tid1):
+                if regex.match(r"^topic_\d+$", tid1):
                     for tid2 in psi.index:
-                        if regex.match("^topic_\d+$", tid2) and psi.loc[tid2, tid1]:
+                        if regex.match(r"^topic_\d+$", tid2) and psi.loc[tid2, tid1]:
                             topic_id_parent = self._from_lid_tid_map[lid, tid1]
                             topic_id_child = self._from_lid_tid_map[lid + 1, tid2]
                             self._topics[topic_id_parent]["children"].append(topic_id_child)

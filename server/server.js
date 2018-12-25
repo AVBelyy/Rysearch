@@ -2,7 +2,7 @@ const path = require("path");
 
 const express = require("express");
 const multer  = require("multer");
-const zmq = require("zmq");
+const zmq = require("zeromq");
 const uuidV4 = require("uuid/v4");
 const bodyParser = require("body-parser");
 
