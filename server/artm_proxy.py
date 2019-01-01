@@ -2,8 +2,6 @@
 Load-balancing proxy for ARTM backend.
 """
 
-import multiprocessing
-import subprocess
 import zmq
 
 ZMQ_FRONTEND_PORT = 2411
