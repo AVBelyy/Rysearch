@@ -1,5 +1,6 @@
 node_modules/
 uploads/
+hartm/
 npm-debug.log
 hartm.mdl
 bigartm.*
