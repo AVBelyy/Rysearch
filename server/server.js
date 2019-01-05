@@ -42,7 +42,7 @@ sock.on("message", function (reply) {
     }
 });
 
-sock.send(JSON.stringify({"act": "get_topics"}));
+sock.send(JSON.stringify({ "act": "get_topics" }));
 
 // Initialize express
 const app = express();
@@ -51,13 +51,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // TODO: temporary upload path! change later in production
 var UPLOAD_PATH = path.join(__dirname, "uploads/")
-var upload = multer({dest: UPLOAD_PATH})
+var upload = multer({ dest: UPLOAD_PATH })
 
 app.get("/get-topics", function (req, res) {
     if (artmTopics) {
         res.send(artmTopics);
     } else {
-        res.send({"error": "topics data not ready yet"});
+        res.send({ "error": "topics data not ready yet" });
     }
 });
 
@@ -90,7 +90,7 @@ app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
     var fileObj = req.file;
 
     if (fileObj.mimetype != "text/plain") {
-        res.send({"error": "unknown filetype '" + fileObj.mimetype + "'"});
+        res.send({ "error": "unknown filetype '" + fileObj.mimetype + "'" });
         return;
     }
 
@@ -103,18 +103,18 @@ app.get("/get-next-assessment", function (req, res) {
     var assessorId = parseInt(req.query.assessor_id);
     var assessorsCnt = parseInt(req.query.assessors_cnt);
     var collectionName = req.query.collection_name;
-    sendToSock(res, {"act": "get_next_assessment",
-                     "collection_name": collectionName,
-                     "assessor_id": assessorId,
-                     "assessors_cnt": assessorsCnt});
+    sendToSock(res, { "act": "get_next_assessment",
+                      "collection_name": collectionName,
+                      "assessor_id": assessorId,
+                      "assessors_cnt": assessorsCnt });
 });
 
 app.post("/assess-document", function (req, res) {
     var docId = req.body.doc_id;
     var isRelevant = req.body.is_relevant === "true";
-    sendToSock(res, {"act": "assess_document",
-                     "doc_id": docId,
-                     "is_relevant": isRelevant});
+    sendToSock(res, { "act": "assess_document",
+                      "doc_id": docId,
+                      "is_relevant": isRelevant });
 });
 
 var server = app.listen(3000, function () {
