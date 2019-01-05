@@ -5,13 +5,13 @@ import tempfile
 import traceback
 import glob
 import os
+import sys
 
 from parsers import arbitrary, text_utils
 from datetime import datetime
 
 import artm
 import artm_lib
-
 
 MODEL_PATH = "hartm"
 
@@ -71,10 +71,11 @@ def process_msg(message):
     elif message["act"] == "transform_doc":
         doc_path = message["doc_path"]
         filename = message["filename"]
+        doc_file, vw_path, batch_path = None, None, None
         try:
             # Initialize file resources
             doc_file = open(doc_path)
-            vw_fd,vw_path = tempfile.mkstemp(prefix="upload", text=True)
+            vw_fd, vw_path = tempfile.mkstemp(prefix="upload", text=True)
             vw_file = os.fdopen(vw_fd, "w")
             batch_path = tempfile.mkdtemp(prefix="batch")
             # Parse uploaded file
@@ -90,11 +91,14 @@ def process_msg(message):
             raise
         finally:
             # Delete uploaded file
-            doc_file.close()
+            if doc_file is not None:
+                doc_file.close()
             os.remove(doc_path)
             # Delete temporary files/dirs
-            os.remove(vw_path)
-            rm_flat_dir(batch_path)
+            if vw_path is not None:
+                os.remove(vw_path)
+            if batch_path is not None:
+                rm_flat_dir(batch_path)
     elif False and message["act"] == "get_next_assessment":
         ass_id = message["assessor_id"]
         ass_cnt = message["assessors_cnt"]
@@ -140,40 +144,50 @@ def process_msg(message):
 
     return response
 
+# Parse command line args
+if len(sys.argv) > 1:
+    zmq_host = sys.argv[1]
+else:
+    zmq_host = "localhost:%d" % ZMQ_BACKEND_PORT
+if len(sys.argv) > 2:
+    mongodb_host = sys.argv[2]
+else:
+    mongodb_host = None  # Use default host provided by MongoDB.
+
+# Initialize arbitrary pipeline
+pipeline = arbitrary.get_pipeline()
+
+# Initialize BigARTM logging
+artm_log_path = tempfile.mkdtemp(prefix="artmlog")
+lc = artm.messages.ConfigureLoggingArgs()
+lc.log_dir = artm_log_path
+lc.minloglevel = 2
+print("Redirecting ARTM logs to:", artm_log_path)
+artm.wrapper.LibArtm(logging_config=lc)
+
+# Initialize ZeroMQ
+context = zmq.Context()
+socket = context.socket(zmq.DEALER)
+# TODO: maybe set socket identity for persistence?
+socket.connect("tcp://" + zmq_host)
+
+# Initialize ARTM bridge
+artm_bridge = artm_lib.ArtmBridge(MODEL_PATH, mongodb_host=mongodb_host)
+
+# Notify ARTM_proxy that we're up
+socket.send(UP)
+
+print("ARTM_bridge: start serving ZeroMQ queries on port",
+      ZMQ_BACKEND_PORT)
+
 try:
-    # Initialize arbitrary pipeline
-    pipeline = arbitrary.get_pipeline()
-
-    # Initialize BigARTM logging
-    artm_log_path = tempfile.mkdtemp(prefix="artmlog")
-    lc = artm.messages.ConfigureLoggingArgs()
-    lc.log_dir = artm_log_path
-    lc.minloglevel = 2
-    print("Redirecting ARTM logs to:", artm_log_path)
-    artm.wrapper.LibArtm(logging_config=lc)
-
-    # Initialize ZeroMQ
-    context = zmq.Context()
-    socket = context.socket(zmq.DEALER)
-    # TODO: maybe set socket identity for persistence?
-    socket.connect("tcp://localhost:%d" % ZMQ_BACKEND_PORT)
-
-    # Initialize ARTM bridge
-    artm_bridge = artm_lib.ArtmBridge(MODEL_PATH)
-
-    # Notify ARTM_proxy that we're up
-    socket.send(UP)
-
-    print("ARTM_bridge: start serving ZeroMQ queries on port",
-          ZMQ_BACKEND_PORT)
-
     while True:
         # Wait for next request from client
         client, request = socket.recv_multipart()
         message = json.loads(request.decode("utf-8"))
 
         # Debug logging
-        print("> " + json.dumps(message))
+        # print("> " + json.dumps(message))
 
         # Process message
         response = {}
@@ -182,7 +196,9 @@ try:
         except BridgeParamError as e:
             response["error"] = {"message": e.message}
         except BaseException as e:
-            response["error"] = {"message": "server error"}
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            response["error"] = {"message": "server error (%s at %s:%d)" % (exc_type, fname, exc_tb.tb_lineno)}
             traceback.print_exc()
 
         socket.send_multipart([

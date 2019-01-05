@@ -241,8 +241,8 @@ class ArtmModel:
 
 
 class ArtmDataSource:
-    def __init__(self):
-        self._db = MongoClient()
+    def __init__(self, mongodb_host=None):
+        self._db = MongoClient(mongodb_host)
 
     def get_documents_by_ids(self, docs_ids, with_texts=True, with_modalities=False):
         fields = {"title": 1, "authors_names" : 1}
@@ -251,7 +251,7 @@ class ArtmDataSource:
         if with_modalities:
             fields["modalities"] = 1
         col = self._db["model"]["all_docs"]
-        result = col.find({"_id": {"$in": docs_ids}}, fields)
+        result = col.find({"_id": {"$in": list(docs_ids)}}, fields)
         result_map = dict(map(lambda v: (v["_id"], v), result))
         response = []
         for doc_id in docs_ids:
@@ -285,8 +285,8 @@ class ArtmDataSource:
         return sorted(results, key=lambda x: x["score"])
 
 class ArtmBridge:
-    def __init__(self, model_path):
-        self._data_source = ArtmDataSource()
+    def __init__(self, model_path, mongodb_host=None):
+        self._data_source = ArtmDataSource(mongodb_host)
         self._model = ArtmModel(model_path)
 
         # Select topics which will be used for recommendation
