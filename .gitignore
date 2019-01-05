@@ -1,6 +1,7 @@
 datasets/
 .ipynb_checkpoints/
 __pycache__/
+.py3/
 venv/
 result
 *.DS_Store
