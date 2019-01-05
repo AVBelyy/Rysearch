@@ -173,7 +173,7 @@ try:
         message = json.loads(request.decode("utf-8"))
 
         # Debug logging
-        # print("> " + json.dumps(message))
+        print("> " + json.dumps(message))
 
         # Process message
         response = {}
