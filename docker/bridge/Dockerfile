@@ -19,7 +19,7 @@ RUN apt-get install -y cmake libboost-all-dev wget
 RUN git clone --branch v0.9.0 --depth=1 https://github.com/bigartm/bigartm.git
 WORKDIR /bigartm
 RUN mkdir build out
-RUN cd build && cmake -DPYTHON=python3 -DCMAKE_INSTALL_PREFIX=../out .. && make && make install
+RUN cd build && cmake -DPYTHON=python3 -DCMAKE_INSTALL_PREFIX=../out .. && make -j4 && make install
 ENV ARTM_SHARED_LIBRARY=/bigartm/out/lib/libartm.so
 
 WORKDIR /Rysearch
