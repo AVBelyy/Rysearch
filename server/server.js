@@ -14,12 +14,12 @@ var routingQueue = {};
 // Initialize zmq
 var sock = zmq.socket("dealer");
 
-function sendToSock (res, msg) {
+function sendToSock (fn, msg) {
     if (typeof msg !== "object" || msg === null) {
         return false;
     }
     var uuid = uuidV4();
-    routingQueue[uuid] = res;
+    routingQueue[uuid] = fn;
     msg["id"] = uuid;
     return sock.send(JSON.stringify(msg)) === 0;
 }
@@ -36,9 +36,9 @@ sock.on("message", function (reply) {
                reply.act == "get_next_assessment" || reply.act == "assess_document" ||
                reply.act == "perform_search"
         ) {
-        var res = routingQueue[reply.id];
+        var fn = routingQueue[reply.id];
         delete routingQueue[reply.id];
-        res.send(reply.data);
+        fn(reply.data);
     }
 });
 
@@ -57,7 +57,7 @@ app.get("/get-topics", function (req, res) {
     if (artmTopics) {
         res.send(artmTopics);
     } else {
-        res.send({ "error": "topics data not ready yet" });
+        sendToSock(res.send, { "act": "get_topics" });
     }
 });
 
@@ -65,25 +65,25 @@ app.get("/get-documents", function (req, res) {
     var topicId = req.query.topic_id;
     var offset = parseInt(req.query.offset);
     var limit = parseInt(req.query.limit);
-    sendToSock(res, { "act": "get_documents", "topic_id": topicId,
-                      "offset": offset, "limit": limit });
+    sendToSock(res.send, { "act": "get_documents", "topic_id": topicId,
+                           "offset": offset, "limit": limit });
 });
 
 app.get("/perform-search", function (req, res) {
     var query = req.query.query;
     var limit = parseInt(req.query.limit);
-    sendToSock(res, { "act": "perform_search", "query": query, "limit": limit });
+    sendToSock(res.send, { "act": "perform_search", "query": query, "limit": limit });
 });
 
 app.get("/get-document", function (req, res) {
     var docId = req.query.doc_id;
     var recommTags = req.query.recommend_tags;
-    sendToSock(res, { "act": "get_document", "doc_id": docId, "recommend_tags": !!recommTags });
+    sendToSock(res.send, { "act": "get_document", "doc_id": docId, "recommend_tags": !!recommTags });
 });
 
 app.get("/recommend-docs", function (req, res) {
     var docId = req.query.doc_id;
-    sendToSock(res, { "act": "recommend_docs", "doc_id": docId });
+    sendToSock(res.send, { "act": "recommend_docs", "doc_id": docId });
 });
 
 app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
@@ -95,26 +95,26 @@ app.post("/transform-doc", upload.single("doc"), function (req, res, next) {
     }
 
     // Make request to ARTM_bridge
-    sendToSock(res, { "act": "transform_doc", "doc_path": fileObj.path,
-                      "filename": fileObj.originalname });
+    sendToSock(res.send, { "act": "transform_doc", "doc_path": fileObj.path,
+                           "filename": fileObj.originalname });
 });
 
 app.get("/get-next-assessment", function (req, res) {
     var assessorId = parseInt(req.query.assessor_id);
     var assessorsCnt = parseInt(req.query.assessors_cnt);
     var collectionName = req.query.collection_name;
-    sendToSock(res, { "act": "get_next_assessment",
-                      "collection_name": collectionName,
-                      "assessor_id": assessorId,
-                      "assessors_cnt": assessorsCnt });
+    sendToSock(res.send, { "act": "get_next_assessment",
+                           "collection_name": collectionName,
+                           "assessor_id": assessorId,
+                           "assessors_cnt": assessorsCnt });
 });
 
 app.post("/assess-document", function (req, res) {
     var docId = req.body.doc_id;
     var isRelevant = req.body.is_relevant === "true";
-    sendToSock(res, { "act": "assess_document",
-                      "doc_id": docId,
-                      "is_relevant": isRelevant });
+    sendToSock(res.send, { "act": "assess_document",
+                           "doc_id": docId,
+                           "is_relevant": isRelevant });
 });
 
 var server = app.listen(3000, function () {
