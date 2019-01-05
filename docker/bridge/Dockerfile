@@ -21,12 +21,12 @@ WORKDIR /Rysearch/server
 RUN git submodule init && git submodule update --depth=1
 RUN pip3 install -r requirements/bridge.txt
 
-WORKDIR bigartm
+WORKDIR ../bigartm
 
 # Install BigARTM.
 RUN mkdir build out
 RUN cd build && cmake -DPYTHON=python3 -DCMAKE_INSTALL_PREFIX=../out .. && make -j4 && make install
-ENV ARTM_SHARED_LIBRARY=/bigartm/out/lib/libartm.so
+ENV ARTM_SHARED_LIBRARY=/Rysearch/bigartm/out/lib/libartm.so
 
 # Download hARTM model dump.
 WORKDIR /Rysearch
