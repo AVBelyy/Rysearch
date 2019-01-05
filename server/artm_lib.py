@@ -250,17 +250,8 @@ class ArtmDataSource:
             fields["markdown"] = 1
         if with_modalities:
             fields["modalities"] = 1
-        queries = {}
-        for doc_id in docs_ids:
-            prefix = doc_id.split("_", 1)[0]
-            col_name = prefix_to_col_map[prefix]
-            if col_name not in queries:
-                queries[col_name] = []
-            queries[col_name].append(doc_id)
-        result = []
-        for col_name, col_docs_ids in queries.items():
-            dataset = self._db["datasets"][col_name]
-            result += dataset.find({"_id": {"$in": col_docs_ids}}, fields)
+        col = self._db["model"]["all_docs"]
+        result = col.find({"_id": {"$in": docs_ids}}, fields)
         result_map = dict(map(lambda v: (v["_id"], v), result))
         response = []
         for doc_id in docs_ids:
