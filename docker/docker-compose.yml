@@ -1,0 +1,30 @@
+version: "3"
+services:
+    db:
+        build: db
+        expose:
+        - 27017
+    proxy:
+        build: proxy
+        expose:
+        - 2411
+        - 2511
+    bridge:
+        build: bridge
+        depends_on:
+        - db
+        - proxy
+        command: "wait-for-it db:27017 -s -t 60 -- wait-for-it proxy:2511 -s -t 30 -- python3 artm_bridge.py proxy:2511 db:27017"
+        volumes:
+        - upload-volume:/Rysearch/server/uploads
+    front:
+        build: front
+        depends_on:
+        - proxy
+        ports:
+        - 3000:3000
+        command: "wait-for-it proxy:2411 -s -t 30 -- npm start -- proxy:2411"
+        volumes:
+        - upload-volume:/Rysearch/server/uploads
+volumes:
+    upload-volume:
