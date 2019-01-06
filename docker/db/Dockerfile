@@ -9,6 +9,5 @@ RUN wget -q https://github.com/vishnubob/wait-for-it/raw/54d1f0bfeb6557adf8a3204
 # Restore MongoDB database from a dump.
 RUN wget -qO- https://s3.eu-central-1.amazonaws.com/rysearch/db.tar.gz | tar xz
 RUN chmod +x wait-for-it.sh
-COPY restore-db.sh /restore-db.sh
-RUN chmod +x restore-db.sh
-CMD /restore-db.sh
+
+CMD docker-entrypoint.sh mongod --fork --syslog && /wait-for-it.sh localhost:27017 -s -t 60 -- echo "restoring MondoDB dump..." && sleep 3 && mongorestore --db model --drop /db/model && tail -f /dev/null
