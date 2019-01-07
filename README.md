@@ -1,39 +1,47 @@
 # Rysearch
-Rysearch is an explorato**ry search** engine and recommender system. Based on [BigARTM](http://bigartm.org), open-source library for topic modeling, it takes into account latent topical structure of texts to achieve good results in both knowledge exploration and visualization.[1]
+[![Rysearch screenshots](https://s3.eu-central-1.amazonaws.com/rysearch/rysearch-github-header.jpg)](http://rysearch.space/)
+Rysearch is an explorato**ry search** engine and recommender system. Based on [MongoDB](https://www.mongodb.com/) and [BigARTM](http://bigartm.org), it allows to perform both exact and inexact search queries over popular-scientific corpora and visualizes these corpora in a hierarchical "map of knowledge", which is built using weakly supervised hierarchical topic models.
 
-### How to configure Rysearch?
-Before running a server, you need to install some libraries, like this:
-```bash
-cd server/
+The demonstration of the current stable version can be found [here](http://rysearch.space/).
 
-# Install Node.js libraries 
-npm install
+## How to run Rysearch?
+The preferred way to install and run Rysearch is via Docker. You can either pull the latest containers from Docker hub or build everything on your own. Previously, Rysearch could also be built using Nix; this is now deprecated, but the corresponding *.nix* files are retained for the reference.
 
-# Install Bower front-end libraries 
-cd static/
-bower install
+### Requirements
+* [Docker](https://www.docker.com/products/docker-desktop)
+* [Docker-compose](https://github.com/docker/compose/releases)
+
+### Step 1: Obtaining Docker containers
+
+The easiest way to get the containers is to pull them from Docker hub:
+```
+git clone https://github.com/AVBelyy/Rysearch.git /path/to/Rysearch
+cd /path/to/Rysearch/docker
+docker-compose pull
 ```
 
-### How to run Rysearch?
-
-Rysearch server consists of two backend and one frontend layers: ARTM_proxy (middle layer that balances search-related workload), ARTM_bridge (actual search worker) and Node.js server. You have to run them as separate programs in the following order:
-```bash
-# Run ARTM_proxy
-python3 artm_proxy.py
+Alternatively, it is possible to build the required containers on your own infrastructure:
+```
+git clone https://github.com/AVBelyy/Rysearch.git /path/to/Rysearch
+cd /path/to/Rysearch/docker
+docker-compose build
 ```
 
-```bash
-# Run ARTM_bridge
-python3 artm_bridge.py
+### Step 2: Running the containers
+
+After the containers are either downloaded or manually built, you can use `docker-compose` to run them:
+```
+cd /path/to/Rysearch/docker
+docker-compose up
 ```
 
-```bash
-# Run Node.js server
-npm start
+By default, `docker-compose` runs a single worker to process all search queries. You can run an arbitrary number of workers, say N workers, to balance the load, like this:
+```
+cd /path/to/Rysearch/docker
+docker-compose up --scale bridge=N
 ```
 
-You can run multiple instances of ARTM_bridge to balance search load. With some additional work (which has not been done yet by us...) you can even run several ARTM_bridge on several machines, connected by some network.
-
-Everything has been tested on Linux (NixOS) and MacOS. If things do not work -- please submit us an issue.
-
-[1] K. V. Vorontsov et al. Non-Bayesian Additive Regularization for Multimodal Topic Modeling of Large Collections, *TM '15 Proceedings of the 2015 Workshop on Topic Models: Post-Processing and Applications*, 2014.
+## Citation
+If you are planning to use Rysearch in your research projects, please cite one of the following papers:
+* Anton Belyy. Construction and quality evaluation of heterogeneous hierarchical topic models. *arXiv preprint arXiv:1811.02820*, 2018. [[preprint]](https://arxiv.org/abs/1811.02820)
+* Anton Belyy, Mariia Seleznova, Aleksei Sholokhov, and Konstantin Vorontsov. Quality evaluation and improvement for hierarchical topic modeling. In *24rd International Conference on Computational Linguistics and Intellectual Technologies*, pages 110–123, 2018. [[paper]](http://www.dialog-21.ru/media/4562/belyyavplusetal.pdf) [[slides]](http://www.dialog-21.ru/media/4352/belyy_seleznova.pdf)
