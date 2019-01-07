@@ -15,7 +15,6 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-# TODO: branch 'stable'.
 RUN git clone --depth=1 https://github.com/AVBelyy/Rysearch.git
 WORKDIR /Rysearch/server
 RUN git submodule init && git submodule update --depth=1

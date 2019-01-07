@@ -7,7 +7,6 @@ RUN apt-get install -y git
 RUN apt-get install -y python3
 RUN apt-get install -y python3-pip
 
-# TODO: branch 'stable'.
 RUN git clone --depth=1 https://github.com/AVBelyy/Rysearch.git
 WORKDIR Rysearch/server
 RUN pip3 install -r requirements/proxy.txt
