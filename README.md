@@ -2,7 +2,7 @@
 [![Rysearch screenshots](https://s3.eu-central-1.amazonaws.com/rysearch/rysearch-github-header.jpg)](http://rysearch.space/)
 Rysearch is an explorato**ry search** engine and recommender system. Based on [MongoDB](https://www.mongodb.com/) and [BigARTM](http://bigartm.org), it allows to perform both exact and inexact search queries over popular-scientific corpora and visualizes these corpora in a hierarchical "map of knowledge", which is built using weakly supervised hierarchical topic models.
 
-The demonstration of the current stable version can be found [here](http://rysearch.space/).
+The demonstration of the current stable version can be found [here](http://rysearch.retloko.org/).
 
 ## How to run Rysearch?
 The preferred way to install and run Rysearch is via Docker. You can either pull the latest containers from Docker hub or build everything on your own. Previously, Rysearch could also be built using Nix; this is now deprecated, but the corresponding *.nix* files are retained for the reference.
