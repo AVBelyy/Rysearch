@@ -5,7 +5,7 @@ Rysearch is an explorato**ry search** engine and recommender system. Based on [M
 The demonstration of the current stable version can be found [here](http://rysearch.retloko.org/).
 
 ## How to run Rysearch?
-The preferred way to install and run Rysearch is via Docker. You can either pull the latest containers from Docker hub or build everything on your own. Previously, Rysearch could also be built using Nix; this is now deprecated, but the corresponding *.nix* files are retained for the reference.
+The preferred way to install and run Rysearch is via Docker. You can either pull the latest containers from Docker hub or build everything on your own. Previously, Rysearch could also be built using [Nix](https://github.com/NixOS/nix); this is now deprecated, but the corresponding *.nix* files are retained for the reference.
 
 ### Requirements
 * [Docker](https://www.docker.com/products/docker-desktop)
@@ -42,6 +42,6 @@ docker-compose up --scale bridge=N
 ```
 
 ## Citation
-If you are planning to use Rysearch in your research projects, please cite one of the following papers:
-* Anton Belyy. Construction and quality evaluation of heterogeneous hierarchical topic models. *arXiv preprint arXiv:1811.02820*, 2018. [[preprint]](https://arxiv.org/abs/1811.02820)
+If you are planning to use Rysearch in your research projects, please cite one of the following articles:
+* Anton Belyy. Construction and quality evaluation of heterogeneous hierarchical topic models. *Bachelor's thesis*, 2018. [[thesis]](https://arxiv.org/abs/1811.02820)
 * Anton Belyy, Mariia Seleznova, Aleksei Sholokhov, and Konstantin Vorontsov. Quality evaluation and improvement for hierarchical topic modeling. In *24rd International Conference on Computational Linguistics and Intellectual Technologies*, pages 110–123, 2018. [[paper]](http://www.dialog-21.ru/media/4562/belyyavplusetal.pdf) [[slides]](http://www.dialog-21.ru/media/4352/belyy_seleznova.pdf)
