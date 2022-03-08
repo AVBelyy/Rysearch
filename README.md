@@ -43,5 +43,5 @@ docker-compose up --scale bridge=N
 
 ## Citation
 If you are planning to use Rysearch in your research projects, please cite one of the following articles:
-* Anton Belyy. Construction and quality evaluation of heterogeneous hierarchical topic models. *Bachelor's thesis*, 2018. [[thesis]](https://arxiv.org/abs/1811.02820) [[slides]](https://static.retloko.org/slides/belyy2018bachelor-thesis-slides.pdf)
+* Anton Belyy. Construction and quality evaluation of heterogeneous hierarchical topic models. *Bachelor's thesis*, 2018. [[thesis]](https://arxiv.org/abs/1811.02820) [[slides]](https://static.retloko.org/slides/belyy2018bachelor-thesis-slides.pdf) [[slides (in Russian)]](https://static.retloko.org/slides/belyy2018bachelor-thesis-slides-russian.pdf)
 * Anton Belyy, Mariia Seleznova, Aleksei Sholokhov, and Konstantin Vorontsov. Quality evaluation and improvement for hierarchical topic modeling. In *24rd International Conference on Computational Linguistics and Intellectual Technologies*, pages 110–123, 2018. [[paper]](http://www.dialog-21.ru/media/4562/belyyavplusetal.pdf) [[slides]](http://www.dialog-21.ru/media/4352/belyy_seleznova.pdf)
